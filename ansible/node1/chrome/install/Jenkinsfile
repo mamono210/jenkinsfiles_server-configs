@@ -1,0 +1,69 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+
+    ANSIBLE_HOST = "${env.NODE1_IP_ADDER}"
+
+    ANSIBLE_HOST_PASSWORD =  "${env.NODE1_PASSWORD}"
+
+    WORKING_DIR = "/home/ansible/.jenkins/${env.NODE1_IP_ADDER}_chrome_install"
+  }
+
+  stages {
+    stage('Retrive source code from Github') {
+      steps {
+        build job: 'ansible/common/retrive-source-code-from-github', 
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+
+    stage('Configure ansible inventory file') {
+      steps {
+        build job: 'ansible/common/configure-ansible-inventory-file/ssh-connection-enabled',
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR', 
+                          value: "${env.WORKING_DIR}"
+                        ),
+                        string(
+                          name: 'ANSIBLE_HOST', 
+                          value: "${env.ANSIBLE_HOST}"
+                        ),
+                        password(
+                          name: 'ANSIBLE_HOST_PASSWORD',
+                          value: "${env.ANSIBLE_HOST_PASSWORD}"
+                        )
+                      ]
+      }
+    }
+
+    stage('excute ansible-playbook command') {
+      steps {
+        sh "sudo -u ansible ansible-playbook ${env.WORKING_DIR}/chrome_install.yml \
+            -i ${env.WORKING_DIR}/inventories/host \
+            | sudo -u ansible tee ${env.WORKING_DIR}/.ansible.log"
+      }
+    }
+
+    stage('Analyze Ansible log and output result') {
+      steps {
+        build job: 'ansible/common/analyze-ansible-log-and-output-result', 
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+  } 
+}
