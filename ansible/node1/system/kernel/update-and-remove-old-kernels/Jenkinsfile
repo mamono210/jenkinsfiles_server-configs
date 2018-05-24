@@ -5,12 +5,12 @@ pipeline {
   agent any
 
   environment {
-    
+
     ANSIBLE_HOST = "${env.NODE1_IP_ADDER}"
-    
+
     ANSIBLE_HOST_PASSWORD =  "${env.NODE1_PASSWORD}"
-    
-    WORKING_DIR = "/home/ansible/.jenkins/${env.NODE1_IP_ADDER}_system_ssh_add-users-and-change-sshd-config-and-firewall"
+
+    WORKING_DIR = "/home/ansible/.jenkins/${env.NODE1_IP_ADDER}_system_kernel_update-and-remove-old-kernels"
   }
 
   stages {
@@ -26,25 +26,9 @@ pipeline {
       }
     }
 
-    stage('Create Ansible vault password file') {
-      steps {
-        build job: 'ansible/common/create-ansible-vault-password-file',
-          parameters: [
-                        string(
-                          name: 'VAULT_PASSWORD_FILE', 
-                          value: "${env.ANSIBLE_VAULT_PASSWORD_FILE_PATH}"
-                        ),
-                        string(
-                          name: 'VAULT_PASS',
-                          value: "${env.ANSIBLE_VAULT_PASSWORD}"
-                        )
-                      ]
-      }
-    }
-
     stage('Configure ansible inventory file') {
       steps {
-        build job: 'ansible/common/configure-ansible-inventory-file/first-time-connection',
+        build job: 'ansible/common/configure-ansible-inventory-file/ssh-connection-enabled',
           parameters: [
                         string(
                           name: 'WORKING_DIR', 
@@ -64,11 +48,8 @@ pipeline {
 
     stage('excute ansible-playbook command') {
       steps {
-        sh "sudo -u ansible ansible-playbook ${env.WORKING_DIR}/system_ssh_add-users-and-change-sshd-config-and-firewall.yml \
+        sh "sudo -u ansible ansible-playbook ${env.WORKING_DIR}/system_kernel_update-and-remove-old-kernels.yml \
             -i ${env.WORKING_DIR}/inventories/host \
-            --vault-password-file ${env.ANSIBLE_VAULT_PASSWORD_FILE_PATH} \
-            -e 'ssh_port=45345' \
-            -e 'redmine_ip=153.126.152.131' \
             | sudo -u ansible tee ${env.WORKING_DIR}/.ansible.log"
       }
     }
