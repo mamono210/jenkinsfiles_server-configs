@@ -1,0 +1,34 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  parameters {
+    string(
+      name: 'WORKING_DIR',
+      defaultValue: '/tmp/git-repo',
+      description: 'Job working directory'
+    )
+  }
+
+  stages {
+    stage('Get ansible-playbook result from ansible log file') {
+      steps {
+        script {
+
+          def output = sh(
+                          returnStdout: true,
+                          script: "sudo -u ansible tail -n 2 ${env.WORKING_DIR}/.ansible.log"
+                       )
+
+          if (output.contains("unreachable=0") && output.contains("failed=0")) {
+            sh "echo success"
+          } else {
+            error "ansible-playbook error\n$output"
+          }
+        }
+      }
+    }
+  }
+}

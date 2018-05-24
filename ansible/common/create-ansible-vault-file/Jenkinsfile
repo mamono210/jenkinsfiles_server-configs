@@ -1,0 +1,31 @@
+#!groovy
+
+pipeline {
+
+    agent any
+
+    parameters {
+        string(
+          name: 'VAULT_PASSWORD_FILE',
+          defaultValue: '/tmp/password.txt',
+          description: 'Ansible vault password file path'
+        )
+        string(
+          name: 'VAULT_PASS',
+          defaultValue: 'password',
+          description: 'Ansible vault password: unhashed strings'
+        )
+    }
+
+    stages {
+        stage('Create Ansible vault password file') {
+            steps {
+                sh "sudo -u ansible rm -rf ${params.VAULT_PASSWORD_FILE}"
+                sh "sudo -u ansible touch ${params.VAULT_PASSWORD_FILE}"
+                sh "sudo -u ansible chmod 777 ${params.VAULT_PASSWORD_FILE}"
+                sh "sudo -u ansible echo ${params.VAULT_PASS} > ${params.VAULT_PASSWORD_FILE}"
+                sh "sudo -u ansible chmod 600 ${params.VAULT_PASSWORD_FILE}"
+            }
+        }
+    }
+}

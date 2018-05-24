@@ -1,0 +1,85 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+     ANSIBLE_HOST = "${env.NODE1_IP_ADDER}"
+     ANSIBLE_HOST_PASSWORD =  "${env.NODE1_PASSWORD}"
+    WORKING_DIR = "/home/ansible/.jenkins/${env.NODE1_IP_ADDER}_system_ssh_add-users-and-change-sshd-config-and-firewall"
+  }
+
+  stages {
+    stage('Retrive source code from Github') {
+      steps {
+        build job: 'ansible/common/retrive-source-code-from-github', 
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+
+    stage('Create Ansible vault password file') {
+      steps {
+        build job: 'ansible/common/create-ansible-vault-password-file',
+          parameters: [
+                        string(
+                          name: 'VAULT_PASSWORD_FILE', 
+                          value: "${env.ANSIBLE_VAULT_PASSWORD_FILE_PATH}"
+                        ),
+                        string(
+                          name: 'VAULT_PASS',
+                          value: "${env.ANSIBLE_VAULT_PASSWORD}"
+                        )
+                      ]
+      }
+    }
+
+    stage('Configure ansible inventory file') {
+      steps {
+        build job: 'ansible/common/configure-ansible-inventory-file',
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR', 
+                          value: "${env.WORKING_DIR}"
+                        ),
+                        string(
+                          name: 'ANSIBLE_HOST', 
+                          value: "${env.ANSIBLE_HOST}"
+                        ),
+                        password(
+                          name: 'ANSIBLE_HOST_PASSWORD',
+                          value: "${env.ANSIBLE_HOST_PASSWORD}"
+                        )
+                      ]
+      }
+    }
+
+    stage('excute ansible-playbook command') {
+      steps {
+        sh "sudo -u ansible ansible-playbook ${env.WORKING_DIR}/system_ssh_add-users-and-change-sshd-config-and-firewall.yml \
+            -i ${env.WORKING_DIR}/inventories/host \
+            --vault-password-file ${env.ANSIBLE_VAULT_PASSWORD_FILE_PATH} \
+            -e 'ssh_port=45345' \
+            -e 'redmine_ip=153.126.152.131' \
+            | sudo -u ansible tee ${env.WORKING_DIR}/.ansible.log"
+      }
+    }
+
+    stage('Analyze Ansible log and output result') {
+      steps {
+        build job: 'ansible/common/analyze-ansible-log-and-output-result', 
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+  } 
+}
