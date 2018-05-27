@@ -1,0 +1,24 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    TEST_URL = "http://${env.NODE1_IP_ADDER}/owncloud"
+  }
+
+  stages {
+    stage('Access test') {
+      steps {
+        build job: 'ansible/common/tests/access-tests/access-to-url-should-return-http-status-code-403', 
+          parameters: [
+                        string(
+                          name: 'TEST_URL',
+                          value: "${env.TEST_URL}"
+                        )
+                      ]
+      }
+    }
+  } 
+}
