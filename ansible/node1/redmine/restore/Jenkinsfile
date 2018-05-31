@@ -1,0 +1,75 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+
+    ANSIBLE_HOST = "${env.NODE1_IP_ADDER}"
+
+    ANSIBLE_HOST_PASSWORD =  "${env.NODE1_PASSWORD}"
+
+    WORKING_DIR = "/home/ansible/.jenkins/${env.NODE1_IP_ADDER}_redmine_restore"
+
+    VAR_YAML = "${env.WORKING_DIR}/vars/redmine/install/default.yml"
+
+    PLAYBOOK = "${env.WORKING_DIR}/jenkinsfiles/ansible/node1/redmine/restore/ansible-playbook.sh" 
+  }
+
+  stages {
+    stage('Retrive source code from Github') {
+      steps {
+        build job: 'ansible/common/retrive-source-code-from-github', 
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+
+    stage('Configure ansible vars file') {
+      steps {
+        sh "sudo -u ansible sed -i -e 's/example.com: Require host example.com/${env.REQUIRE_HOST1}: Require host ${env.REQUIRE_HOST1}/g' ${env.VAR_YAML}"
+
+        sh "sudo -u ansible sed -i -e 's/127.0.0.1: Require ip 127.0.0.1/${env.REQUIRE_HOST2}: Require host ${env.REQUIRE_HOST2}/g' ${env.VAR_YAML}"
+      }
+    }
+
+    stage('Create and configure ansible-playbook shellscript file') {
+      steps {
+        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/jenkinsfiles ${env.WORKING_DIR}/jenkinsfiles -b topic"
+        
+        sh "sudo -u ansible sed -i -e \"s#/WORKDIR#${env.WORKING_DIR}#g\" ${env.PLAYBOOK}"
+        
+        sh "sudo -u ansible sed -i -e \"s#example.com:22,#${env.NODE1_IP_ADDER}:${env.ANSIBLE_PORT},#g\" ${env.PLAYBOOK}"
+
+        sh "sudo -u ansible sed -i -e \"s#DBPASSWORD#${env.REDMINE_DB_PASS}#g\" ${env.PLAYBOOK}"
+
+        sh "sudo -u ansible sed -i -e \"s#BACKUPDATAHOST#${env.REDMINE_BACKUP_DATA_HOST}#g\" ${env.PLAYBOOK}"
+      
+        sh "sudo -u ansible sed -i -e \"s#SUPASSWORD#${env.NODE1_PASSWORD}#g\" ${env.PLAYBOOK}"
+      }
+    }
+
+    stage('excute ansible-playbook command') {
+      steps {
+        sh "sudo -u ansible sh ${env.PLAYBOOK}"
+      }
+    }
+
+    stage('Analyze Ansible log and output result') {
+      steps {
+        build job: 'ansible/common/analyze-ansible-log-and-output-result', 
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+  } 
+}
