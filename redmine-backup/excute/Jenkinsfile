@@ -1,0 +1,96 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+
+    REDMINE_BACKUP_DATA_HOST = "${env.REDMINE_BACKUP_DATA_HOST}/redmine-backup"
+    
+    GIT_HANDLER = "${env.WORKING_DIR}/jenkinsfiles/redmine-backup/excute/git-push.sh"
+
+    GITHUB_PASSWORD =  "${env.GITHUB_PASSWORD}"
+
+    GIT_REPO = "https://github.com/TomonoriMatsumura/xxxxx.git"
+
+    WORKING_DIR = "/var/lib/jenkins/.jenkins-wokingdir/redmine-backup"
+
+  }
+
+  stages {
+    stage('Retrive Redmine backup data from GitHub') {
+      steps {
+        
+        sh "rm -rf ${env.WORKING_DIR}"
+        sh "mkdir -p ${env.WORKING_DIR}"
+
+        dir("${env.WORKING_DIR}") {
+          sh "git clone ${env.GIT_REPO} ."
+        }
+        dir("${env.WORKING_DIR}") {
+          sh "git branch `date +%Y%m%d`"
+          sh "git checkout `date +%Y%m%d`"
+        }
+      }
+    }
+
+    stage('Create and configure GitHub handler shellscript file') {
+      steps {
+        script {
+          def BRANCH_NAME = sh (
+                             returnStdout: true,
+                             script: "date +%Y%m%d"
+                           ).trim()
+
+          sh "git clone https://github.com/TomonoriMatsumura/jenkinsfiles ${env.WORKING_DIR}/jenkinsfiles -b topic"
+
+          sh "sed -i -e \"s#GITHUB_PASSWORD#${env.GITHUB_PASSWORD}#g\" ${env.GIT_HANDLER}"
+
+          sh "sed -i -e \"s#WORKING_DIR#${env.WORKING_DIR}#g\" ${env.GIT_HANDLER}"
+
+          sh "sed -i -e 's/BRANCH_NAME/${BRANCH_NAME}/g' ${env.GIT_HANDLER}"
+        }
+      }
+    }
+
+    stage('Retrive Redmine backup data') {
+      steps {
+        dir("${env.WORKING_DIR}") {
+          sh "curl -O ${env.REDMINE_BACKUP_DATA_HOST}/files.tar"
+          sh "curl -O ${env.REDMINE_BACKUP_DATA_HOST}/git.tar"
+          sh "curl -O ${env.REDMINE_BACKUP_DATA_HOST}/redmine.psql"
+        }
+      }
+    }
+
+    stage('Split tar files') {
+      steps {
+        dir("${env.WORKING_DIR}") {
+          sh "zip -e --password='${env.ZIP_PASSWORD}' git.zip git.tar"
+          sh "rm -rf git.tar"
+          sh "split -b 40M git.zip"
+          sh "rm -rf git.zip"
+        }
+      }
+    }
+
+    stage('Git staging files') {
+      steps {
+        dir("${env.WORKING_DIR}") {
+          sh "git config --global user.name '${env.GITHUB_USER_NAME}'"
+          sh "git config --global user.email '${env.GITHUB_USER_EMAIL}'"
+          sh "git add -A"
+          sh "git commit -m 'create backup `date +%Y%m%d`'"
+        }
+      }
+    }
+
+    stage('Git push') {
+      steps {
+        sh "bash ${env.GIT_HANDLER}"
+      }
+    }
+
+  }
+}
