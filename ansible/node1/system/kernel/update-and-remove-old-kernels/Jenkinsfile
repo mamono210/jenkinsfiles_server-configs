@@ -5,18 +5,15 @@ pipeline {
   agent any
 
   environment {
+    ANSIBLE_HOST = credentials('node1_ip_address')
 
-    ANSIBLE_HOST = "${env.NODE1_IP_ADDER}"
-
-    ANSIBLE_HOST_PASSWORD =  "${env.NODE1_PASSWORD}"
-
-    WORKING_DIR = "/home/ansible/.jenkins/${env.NODE1_IP_ADDER}_system_kernel_update-and-remove-old-kernels"
+    WORKING_DIR = "/home/ansible/.jenkins/${env.ANSIBLE_HOST}_system_kernel_update-and-remove-old-kernels"
   }
 
   stages {
     stage('Retrive source code from Github') {
       steps {
-        build job: 'ansible/common/retrive-source-code-from-github', 
+        build job: 'ansible/common/retrive-source-code-from-github',
           parameters: [
                         string(
                           name: 'WORKING_DIR',
@@ -28,22 +25,44 @@ pipeline {
 
     stage('Configure ansible inventory file') {
       steps {
-        build job: 'ansible/common/configure-ansible-inventory-file/ssh-connection-enabled',
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR', 
-                          value: "${env.WORKING_DIR}"
-                        ),
-                        string(
-                          name: 'ANSIBLE_HOST', 
-                          value: "${env.ANSIBLE_HOST}"
-                        ),
-                        password(
-                          name: 'ANSIBLE_HOST_PASSWORD',
-                          value: "${env.ANSIBLE_HOST_PASSWORD}"
-                        )
-                      ]
-      }
+        withCredentials(
+                          [
+                            string(
+                              variable: 'ANSIBLE_HOST',
+                              credentialsId: 'node1_ip_address'
+                            ),
+                            string(
+                              variable: 'ANSIBLE_PORT',
+                              credentialsId: 'ansible_port'
+                            ),
+                            string(
+                              variable: 'ANSIBLE_HOST_PASSWORD',
+                              credentialsId: 'node1_password'
+                            )
+                          ]
+                       )
+          {
+            build job: 'ansible/common/configure-ansible-inventory-file/ssh-connection-enabled',
+              parameters: [
+                            string(
+                              name: 'WORKING_DIR',
+                              value: "${env.WORKING_DIR}"
+                            ),
+                            credentials(
+                              name: 'ANSIBLE_HOST',
+                              value: "${env.ANSIBLE_HOST}"
+                            ),
+                            credentials(
+                              name: 'ANSIBLE_PORT',
+                              value: "${env.ANSIBLE_PORT}"
+                            ),
+                            password(
+                               name: 'ANSIBLE_HOST_PASSWORD',
+                               value: "${env.ANSIBLE_HOST_PASSWORD}"
+                            )
+                          ]
+          }
+        }
     }
 
     stage('excute ansible-playbook command') {
@@ -56,7 +75,7 @@ pipeline {
 
     stage('Analyze Ansible log and output result') {
       steps {
-        build job: 'ansible/common/analyze-ansible-log-and-output-result', 
+        build job: 'ansible/common/analyze-ansible-log-and-output-result',
           parameters: [
                         string(
                           name: 'WORKING_DIR',
@@ -65,5 +84,5 @@ pipeline {
                       ]
       }
     }
-  } 
+  }
 }

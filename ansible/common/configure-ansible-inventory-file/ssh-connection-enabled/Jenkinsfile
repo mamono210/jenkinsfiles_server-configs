@@ -15,6 +15,11 @@ pipeline {
       defaultValue: '127.0.0.1',
       description: 'Vaule of ansible_host',
     )
+    credentials(
+      name: 'ANSIBLE_PORT',
+      defaultValue: '22',
+      description: 'Vaule of ansible_port',
+    )
     password(
       name: 'ANSIBLE_HOST_PASSWORD',
       defaultValue: 'password',
