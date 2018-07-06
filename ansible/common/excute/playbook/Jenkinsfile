@@ -1,0 +1,79 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  parameters {
+    string(
+      name: 'ANSIBLE_PLAYBOOK',
+      defaultValue: '',
+      description: 'Ansible playbook name'
+    )
+    credentials(
+      name: 'EXCUTE_USER',
+      defaultValue: '',
+      description: 'Ansible playbook excute user'
+    )
+    credentials(
+      name: 'INVENTORY',
+      defaultValue: '',
+      description: '',
+    )
+    string(
+      name: 'WORKING_DIR',
+      defaultValue: '/tmp/git-repo',
+      description: 'Job working directory'
+    )
+  }
+
+  stages {
+    stage('Retrive source code from Github') {
+      steps {
+        build job: 'ansible/common/retrive-source-code-from-github',
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${params.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+
+    stage('Configure ansible inventory file') {
+      steps {
+        build job: 'ansible/common/configure-ansible-inventory-file/ssh-connection-enabled',
+          parameters: [
+                         credentials(
+                           name: 'INVENTORY',
+                           value: "${params.INVENTORY}"
+                         ),
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${params.WORKING_DIR}"
+                         )
+                       ]
+      }
+    }
+
+    stage('excute ansible-playbook command') {
+      steps {
+        sh "sudo -u ${params.EXCUTE_USER} ansible-playbook ${params.WORKING_DIR}/${params.ANSIBLE_PLAYBOOK}.yml \
+            -i /tmp${params.WORKING_DIR}/inventories/host \
+            | sudo -u ${params.EXCUTE_USER} tee ${params.WORKING_DIR}/.ansible.log"
+      }
+    }
+
+    stage('Analyze Ansible log and output result') {
+      steps {
+        build job: 'ansible/common/analyze-ansible-log-and-output-result',
+          parameters: [
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${params.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+  }
+}

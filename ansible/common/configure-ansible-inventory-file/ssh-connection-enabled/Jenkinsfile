@@ -11,36 +11,19 @@ pipeline {
       description: 'Job working directory'
     )
     credentials(
-      name: 'ANSIBLE_HOST',
-      defaultValue: '127.0.0.1',
-      description: 'Vaule of ansible_host',
-    )
-    credentials(
-      name: 'ANSIBLE_PORT',
-      defaultValue: '22',
-      description: 'Vaule of ansible_port',
-    )
-    password(
-      name: 'ANSIBLE_HOST_PASSWORD',
-      defaultValue: 'password',
-      description: 'Value of ansible_host_password'
+      name: 'INVENTORY',
+      defaultValue: '',
+      description: '',
     )
   }
 
   stages {
     stage('set ansible inventory file') {
       steps {
-        wrap([$class: 'MaskPasswordsBuildWrapper']) {
-          sh "sudo -u ansible sed -i -e \"s/ansible_become_pass: password/ansible_become_pass: ${params.ANSIBLE_HOST_PASSWORD}/g\" ${params.WORKING_DIR}/inventories/host"
-
-          sh "sudo -u ansible sed -i -e \"s/my server:/${params.ANSIBLE_HOST}:/g\" ${params.WORKING_DIR}/inventories/host"
-
-          sh "sudo -u ansible sed -i -e \"s/ansible_host: example.com/ansible_host: ${params.ANSIBLE_HOST}/g\" ${params.WORKING_DIR}/inventories/host"
-
-          sh "sudo -u ansible sed -i -e \"s/ansible_port: 22/ansible_port: ${env.ANSIBLE_PORT}/g\" ${params.WORKING_DIR}/inventories/host"
-
-          sh "sudo -u ansible sed -i -e \"s/ansible_user: root/ansible_user: ansible/g\" ${params.WORKING_DIR}/inventories/host"
-        }
+          sh "rm -rf /tmp${params.WORKING_DIR}"
+          sh "mkdir -p /tmp${params.WORKING_DIR}/inventories"
+          sh "touch /tmp${params.WORKING_DIR}/inventories/host"
+          sh "cat ${params.INVENTORY} > /tmp${params.WORKING_DIR}/inventories/host"
       }
     }
   }
