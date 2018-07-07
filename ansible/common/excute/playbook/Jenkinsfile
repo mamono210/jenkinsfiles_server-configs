@@ -42,17 +42,17 @@ pipeline {
 
     stage('Configure ansible inventory file') {
       steps {
-        build job: 'ansible/common/configure-ansible-inventory-file/ssh-connection-enabled',
+        build job: 'ansible/common/configure-ansible-inventory-file',
           parameters: [
-                         credentials(
-                           name: 'INVENTORY',
-                           value: "${params.INVENTORY}"
-                         ),
+                        credentials(
+                          name: 'INVENTORY',
+                          value: "${params.INVENTORY}"
+                        ),
                         string(
                           name: 'WORKING_DIR',
                           value: "${params.WORKING_DIR}"
-                         )
-                       ]
+                        )
+                      ]
       }
     }
 
