@@ -5,81 +5,19 @@ pipeline {
   agent any
 
   environment {
-    ANSIBLE_HOST = credentials('node1_ip_address')
+    ANSIBLE_PLAYBOOK = "system_ssh_add-users-and-change-sshd-config-and-firewall"
 
-    WORKING_DIR = "/home/ansible/.jenkins/${env.ANISBLE_HOST}_system_ssh_add-users-and-change-sshd-config-and-firewall"
+    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
+
+    VAULT_PASSWORD_FILE = credentials('ansible_vault_password_file')
   }
 
   stages {
-    stage('Retrive source code from Github') {
+    stage('set ansible vault password file') {
       steps {
-        build job: 'ansible/common/retrive-source-code-from-github',
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR',
-                          value: "${env.WORKING_DIR}"
-                        )
-                      ]
-      }
-    }
-
-    stage('Create Ansible vault password file') {
-      steps {
-        withCredentials(
-                          [
-                            string(
-                              variable: 'ANSIBLE_VAULT_PASSWORD',
-                              credentialsId: 'ansible_vault_password'
-                            )
-                          ]
-                       )
-        {
-          build job: 'ansible/common/create-ansible-vault-password-file',
-            parameters: [
-                          string(
-                            name: 'VAULT_PASSWORD_FILE',
-                            value: "${env.ANSIBLE_VAULT_PASSWORD_FILE_PATH}"
-                          ),
-                          password(
-                            name: 'VAULT_PASS',
-                            value: "${env.ANSIBLE_VAULT_PASSWORD}"
-                          )
-                        ]
-        }
-      }
-    }
-
-    stage('Configure ansible inventory file') {
-      steps {
-        withCredentials(
-                          [
-                            string(
-                              variable: 'ANSIBLE_HOST',
-                              credentialsId: 'node1_ip_address'
-                            ),
-                            string(
-                              variable: 'ANSIBLE_HOST_PASSWORD',
-                              credentialsId: 'node1_password'
-                            )
-                          ]
-                       )
-        {
-          build job: 'ansible/common/configure-ansible-inventory-file/first-time-connection',
-            parameters: [
-                          string(
-                            name: 'WORKING_DIR',
-                            value: "${env.WORKING_DIR}"
-                          ),
-                          credentials(
-                            name: 'ANSIBLE_HOST',
-                            value: "${env.ANSIBLE_HOST}"
-                          ),
-                          password(
-                            name: 'ANSIBLE_HOST_PASSWORD',
-                            value: "${env.ANSIBLE_HOST_PASSWORD}"
-                          )
-                        ]
-        }
+          sh "rm -rf /tmp/vault_password"
+          sh "touch /tmp/vault_password"
+          sh "cat ${env.VAULT_PASSWORD_FILE} > /tmp/vault_password"
       }
     }
 
@@ -91,32 +29,37 @@ pipeline {
                               variable: 'ANSIBLE_PORT',
                               credentialsId: 'ansible_port'
                             ),
+                            file(
+                              variable: 'INVENTORY',
+                              credentialsId: 'node1_ansible_inventory_ssh'
+                            ),
                             string(
                               variable: 'REDMINE_IP',
                               credentialsId: 'app_ip_address'
                             )
                           ]
                        )
-        {
-          sh "sudo -u ansible ansible-playbook ${env.WORKING_DIR}/system_ssh_add-users-and-change-sshd-config-and-firewall.yml \
-              -i ${env.WORKING_DIR}/inventories/host \
-              --vault-password-file ${env.ANSIBLE_VAULT_PASSWORD_FILE_PATH} \
-              -e 'ssh_port=${env.ANSIBLE_PORT}' \
-              -e 'redmine_ip=${env.REDMINE_IP}' \
-              | sudo -u ansible tee ${env.WORKING_DIR}/.ansible.log"
-        }
-      }
-    }
-
-    stage('Analyze Ansible log and output result') {
-      steps {
-        build job: 'ansible/common/analyze-ansible-log-and-output-result',
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR',
-                          value: "${env.WORKING_DIR}"
-                        )
-                      ]
+          {
+            build job: 'ansible/common/excute/playbook',
+              parameters: [
+                            string(
+                              name: 'ANSIBLE_PLAYBOOK',
+                              value: "${env.ANSIBLE_PLAYBOOK}"
+                            ),
+                            password(
+                              name: 'EXTRA_ARGS',
+                              value: "--vault-password-file /tmp/vault_password -e 'ssh_port=${env.ANSIBLE_PORT}' -e 'redmine_ip=${env.REDMINE_IP}'"
+                            ),
+                            credentials(
+                              name: 'INVENTORY',
+                              value: "${env.INVENTORY}"
+                            ),
+                            string(
+                              name: 'WORKING_DIR',
+                              value: "${env.WORKING_DIR}"
+                            )
+                          ]
+          }
       }
     }
   }

@@ -10,10 +10,10 @@ pipeline {
       defaultValue: '',
       description: 'Ansible playbook name'
     )
-    credentials(
-      name: 'EXCUTE_USER',
+    password(
+      name: 'EXTRA_ARGS',
       defaultValue: '',
-      description: 'Ansible playbook excute user'
+      description: 'Ansible playbook extra arguments'
     )
     credentials(
       name: 'INVENTORY',
@@ -30,49 +30,49 @@ pipeline {
   stages {
     stage('Retrive source code from Github') {
       steps {
-        build job: 'ansible/common/retrive-source-code-from-github',
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR',
-                          value: "${params.WORKING_DIR}"
-                        )
-                      ]
+        sh "sudo -u ansible rm -rf ${params.WORKING_DIR}"
+        sh "sudo -u ansible mkdir ${params.WORKING_DIR}"
+        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/ansible.git -b topic ${params.WORKING_DIR}"
       }
     }
 
     stage('Configure ansible inventory file') {
       steps {
-        build job: 'ansible/common/configure-ansible-inventory-file',
-          parameters: [
-                        credentials(
-                          name: 'INVENTORY',
-                          value: "${params.INVENTORY}"
-                        ),
-                        string(
-                          name: 'WORKING_DIR',
-                          value: "${params.WORKING_DIR}"
-                        )
-                      ]
+        wrap([$class: 'MaskPasswordsBuildWrapper']) {
+          sh "rm -rf /tmp${params.WORKING_DIR}"
+          sh "mkdir -p /tmp${params.WORKING_DIR}/inventories"
+          sh "touch /tmp${params.WORKING_DIR}/inventories/host"
+          sh "cat ${params.INVENTORY} > /tmp${params.WORKING_DIR}/inventories/host"
+        }
       }
     }
 
     stage('excute ansible-playbook command') {
       steps {
-        sh "sudo -u ${params.EXCUTE_USER} ansible-playbook ${params.WORKING_DIR}/${params.ANSIBLE_PLAYBOOK}.yml \
-            -i /tmp${params.WORKING_DIR}/inventories/host \
-            | sudo -u ${params.EXCUTE_USER} tee ${params.WORKING_DIR}/.ansible.log"
+        wrap([$class: 'MaskPasswordsBuildWrapper']) {
+          sh "sudo -u ansible ansible-playbook ${params.WORKING_DIR}/${params.ANSIBLE_PLAYBOOK}.yml \
+              -i /tmp${params.WORKING_DIR}/inventories/host \
+              ${params.EXTRA_ARGS} \
+              | sudo -u ansible tee ${params.WORKING_DIR}/.ansible.log"
+        }
       }
     }
 
     stage('Analyze Ansible log and output result') {
       steps {
-        build job: 'ansible/common/analyze-ansible-log-and-output-result',
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR',
-                          value: "${params.WORKING_DIR}"
-                        )
-                      ]
+        script {
+
+          def output = sh(
+                          returnStdout: true,
+                          script: "sudo -u ansible tail -n 2 ${params.WORKING_DIR}/.ansible.log"
+                       )
+
+          if (output.contains("unreachable=0") && output.contains("failed=0")) {
+            sh "echo success"
+          } else {
+            error "ansible-playbook error\n$output"
+          }
+        }
       }
     }
   }
