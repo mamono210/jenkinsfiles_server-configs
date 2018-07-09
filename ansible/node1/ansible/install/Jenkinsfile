@@ -7,8 +7,6 @@ pipeline {
   environment {
     ANSIBLE_PLAYBOOK = 'ansible_install'
 
-    EXCUTE_USER = credentials('ansible_excute_user')
-
     INVENTORY = credentials('node1_ansible_inventory')
 
     WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
@@ -22,10 +20,6 @@ pipeline {
                         string(
                           name: 'ANSIBLE_PLAYBOOK',
                           value: "${env.ANSIBLE_PLAYBOOK}"
-                        ),
-                        credentials(
-                          name: 'EXCUTE_USER',
-                          value: "${env.EXCUTE_USER}"
                         ),
                         credentials(
                           name: 'INVENTORY',
