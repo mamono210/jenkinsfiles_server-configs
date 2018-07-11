@@ -6,49 +6,53 @@ pipeline {
 
   environment {
 
-    ANSIBLE_HOST = "${env.NODE1_IP_ADDER}"
+    ANSIBLE_HOST = credentials('node1_ip_address')
 
-    ANSIBLE_HOST_PASSWORD =  "${env.NODE1_PASSWORD}"
+    ANSIBLE_HOST_PASSWORD = credentials('node1_password')
 
-    WORKING_DIR = "/home/ansible/.jenkins/${env.NODE1_IP_ADDER}_redmine_install"
+    ANSIBLE_PORT = credentials('ansible_port')
+
+    REDMINE_DB_PASS = credentials('redmine_db_password')
+
+    REQUIRE_HOST_1 = credentials('require_host_1')
+
+    REQUIRE_HOST_2 = credentials('require_host_2')
+
+    WORKING_DIR = "/home/ansible/.jenkins/node1_redmine_install"
 
     VAR_YAML = "${env.WORKING_DIR}/vars/redmine/install/default.yml"
 
-    PLAYBOOK = "${env.WORKING_DIR}/jenkinsfiles/ansible/node1/redmine/install/ansible-playbook.sh" 
+    PLAYBOOK = "${env.WORKING_DIR}/jenkinsfiles/ansible/node1/redmine/install/ansible-playbook.sh"
   }
 
   stages {
     stage('Retrive source code from Github') {
       steps {
-        build job: 'ansible/common/retrive-source-code-from-github', 
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR',
-                          value: "${env.WORKING_DIR}"
-                        )
-                      ]
+        sh "sudo -u ansible rm -rf ${env.WORKING_DIR}"
+        sh "sudo -u ansible mkdir ${env.WORKING_DIR}"
+        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/ansible.git -b topic ${env.WORKING_DIR}"
       }
     }
 
     stage('Configure ansible vars file') {
       steps {
-        sh "sudo -u ansible sed -i -e 's/example.com: Require host example.com/${env.REQUIRE_HOST1}: Require host ${env.REQUIRE_HOST1}/g' ${env.VAR_YAML}"
+        sh "sudo -u ansible sed -i -e 's/example.com: Require host example.com/${env.REQUIRE_HOST_1}: Require host ${env.REQUIRE_HOST_1}/g' ${env.VAR_YAML}"
 
-        sh "sudo -u ansible sed -i -e 's/127.0.0.1: Require ip 127.0.0.1/${env.REQUIRE_HOST2}: Require host ${env.REQUIRE_HOST2}/g' ${env.VAR_YAML}"
+        sh "sudo -u ansible sed -i -e 's/127.0.0.1: Require ip 127.0.0.1/${env.REQUIRE_HOST_2}: Require host ${env.REQUIRE_HOST_2}/g' ${env.VAR_YAML}"
       }
     }
 
     stage('Create and configure ansible-playbook shellscript file') {
       steps {
         sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/jenkinsfiles ${env.WORKING_DIR}/jenkinsfiles -b topic"
-        
+
         sh "sudo -u ansible sed -i -e \"s#/WORKDIR#${env.WORKING_DIR}#g\" ${env.PLAYBOOK}"
-        
-        sh "sudo -u ansible sed -i -e \"s#example.com:22,#${env.NODE1_IP_ADDER}:${env.ANSIBLE_PORT},#g\" ${env.PLAYBOOK}"
+
+        sh "sudo -u ansible sed -i -e \"s#example.com:22,#${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT},#g\" ${env.PLAYBOOK}"
 
         sh "sudo -u ansible sed -i -e \"s#DBPASSWORD#${env.REDMINE_DB_PASS}#g\" ${env.PLAYBOOK}"
-      
-        sh "sudo -u ansible sed -i -e \"s#SUPASSWORD#${env.NODE1_PASSWORD}#g\" ${env.PLAYBOOK}"
+
+        sh "sudo -u ansible sed -i -e \"s#SUPASSWORD#${env.ANSIBLE_HOST_PASSWORD}#g\" ${env.PLAYBOOK}"
       }
     }
 
@@ -58,16 +62,22 @@ pipeline {
       }
     }
 
-    stage('Analyze Ansible log and output result') {
+stage('Analyze Ansible log and output result') {
       steps {
-        build job: 'ansible/common/analyze-ansible-log-and-output-result', 
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR',
-                          value: "${env.WORKING_DIR}"
-                        )
-                      ]
+        script {
+
+          def output = sh(
+                          returnStdout: true,
+                          script: "sudo -u ansible tail -n 2 ${env.WORKING_DIR}/.ansible.log"
+                       )
+
+          if (output.contains("unreachable=0") && output.contains("failed=0")) {
+            sh "echo success"
+          } else {
+            error "ansible-playbook error\n$output"
+          }
+        }
       }
     }
-  } 
+  }
 }
