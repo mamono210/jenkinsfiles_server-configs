@@ -5,59 +5,26 @@ pipeline {
   agent any
 
   environment {
+    ANSIBLE_PLAYBOOK = 'selenium_python_chrome_install'
 
-    ANSIBLE_HOST = "${env.NODE1_IP_ADDER}"
+    INVENTORY = credentials('node1_ansible_inventory')
 
-    ANSIBLE_HOST_PASSWORD =  "${env.NODE1_PASSWORD}"
-
-    WORKING_DIR = "/home/ansible/.jenkins/${env.NODE1_IP_ADDER}_selenium_python_chrome_install"
+    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
   }
 
   stages {
-    stage('Retrive source code from Github') {
-      steps {
-        build job: 'ansible/common/retrive-source-code-from-github', 
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR',
-                          value: "${env.WORKING_DIR}"
-                        )
-                      ]
-      }
-    }
-
-    stage('Configure ansible inventory file') {
-      steps {
-        build job: 'ansible/common/configure-ansible-inventory-file/ssh-connection-enabled',
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR', 
-                          value: "${env.WORKING_DIR}"
-                        ),
-                        string(
-                          name: 'ANSIBLE_HOST', 
-                          value: "${env.ANSIBLE_HOST}"
-                        ),
-                        password(
-                          name: 'ANSIBLE_HOST_PASSWORD',
-                          value: "${env.ANSIBLE_HOST_PASSWORD}"
-                        )
-                      ]
-      }
-    }
-
     stage('excute ansible-playbook command') {
       steps {
-        sh "sudo -u ansible ansible-playbook ${env.WORKING_DIR}/selenium_python_chrome_install.yml \
-            -i ${env.WORKING_DIR}/inventories/host \
-            | sudo -u ansible tee ${env.WORKING_DIR}/.ansible.log"
-      }
-    }
-
-    stage('Analyze Ansible log and output result') {
-      steps {
-        build job: 'ansible/common/analyze-ansible-log-and-output-result', 
+        build job: 'ansible/common/excute/playbook',
           parameters: [
+                        string(
+                          name: 'ANSIBLE_PLAYBOOK',
+                          value: "${env.ANSIBLE_PLAYBOOK}"
+                        ),
+                        credentials(
+                          name: 'INVENTORY',
+                          value: "${env.INVENTORY}"
+                        ),
                         string(
                           name: 'WORKING_DIR',
                           value: "${env.WORKING_DIR}"
@@ -65,5 +32,5 @@ pipeline {
                       ]
       }
     }
-  } 
+  }
 }
