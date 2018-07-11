@@ -1,0 +1,33 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  parameters {
+    string(
+      name: 'TEST_URL',
+      defaultValue: 'http://example.com',
+      description: 'test url'
+    )
+  }
+
+  stages {
+    stage('access to url should resturn http status code 403') {
+      steps {
+        script {
+          def STATUS_CODE = sh(
+                          returnStdout: true,
+                          script: "curl -LI ${params.TEST_URL}  -o /dev/null -w '%{http_code}\n' -s"
+                       )
+
+          if (STATUS_CODE.contains("403")) {
+            sh "echo test success accessing ${params.TEST_URL} returned http status code $STATUS_CODE"
+          } else {
+            error "error\n$STATUS_CODE"
+          }
+        }
+      }
+    }
+  }
+}
