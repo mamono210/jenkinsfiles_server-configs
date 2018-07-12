@@ -5,81 +5,52 @@ pipeline {
   agent any
 
   environment {
+    ANSIBLE_PLAYBOOK = 'wordpress_install'
 
-    ANSIBLE_HOST = "${env.NODE1_IP_ADDER}"
+    INVENTORY = credentials('node1_ansible_inventory')
 
-    ANSIBLE_HOST_PASSWORD =  "${env.NODE1_PASSWORD}"
+    MARIADB_ROOT_PASSWORD = credentials('ansible_mariadb_root_password')
 
-    WORKING_DIR = "/home/ansible/.jenkins/${env.NODE1_IP_ADDER}_wordpress_install_catch_up"
+    WP_DB_PASSWORD = credentials('ansible_wp_db_password')
 
-    VAR_YAML = "${env.WORKING_DIR}/vars/wordpress/install/default.yml" 
+    REQUIRE_HOST_1 = credentials('require_host_1')
+
+    REQUIRE_HOST_2 = credentials('require_host_2')
+
+    EXTRA_ARGS = "--skip-tags 'httpd_install,language_php_71_install,rdb_mariadb_install' \
+                  -e 'db_user=wp_catch_up' \
+                  -e 'db_name=wp_catch_up' \
+                  -e 'db_password=${env.WP_DB_PASSWORD}' \
+                  -e 'httpd_conf_confd=wp_catch_up.conf' \
+                  -e 'wp_install_dir=wordpress/catch_up' \
+                  -e 'mariadb_root_password=${env.MARIADB_ROOT_PASSWORD}' \
+                  -e '{ \"requires\": [ { \"${env.REQUIRE_HOST_1}\": \"Require host ${env.REQUIRE_HOST_1}\" }, { \"${env.REQUIRE_HOST_2}\": \"Require host ${env.REQUIRE_HOST_2}\" } ] }'"
+    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
   }
 
   stages {
-    stage('Retrive source code from Github') {
-      steps {
-        build job: 'ansible/common/retrive-source-code-from-github', 
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR',
-                          value: "${env.WORKING_DIR}"
-                        )
-                      ]
-      }
-    }
-
-    stage('Configure ansible inventory file') {
-      steps {
-        build job: 'ansible/common/configure-ansible-inventory-file/ssh-connection-enabled',
-          parameters: [
-                        string(
-                          name: 'WORKING_DIR', 
-                          value: "${env.WORKING_DIR}"
-                        ),
-                        string(
-                          name: 'ANSIBLE_HOST', 
-                          value: "${env.ANSIBLE_HOST}"
-                        ),
-                        password(
-                          name: 'ANSIBLE_HOST_PASSWORD',
-                          value: "${env.ANSIBLE_HOST_PASSWORD}"
-                        )
-                      ]
-      }
-    }
-
-    stage('Configure ansible vars file') {
-      steps {
-        sh "sudo -u ansible sed -i -e 's/example.com: Require host example.com/${env.REQUIRE_HOST1}: Require host ${env.REQUIRE_HOST1}/g' ${env.VAR_YAML}"
-        sh "sudo -u ansible sed -i -e 's/127.0.0.1: Require ip 127.0.0.1/${env.REQUIRE_HOST2}: Require host ${env.REQUIRE_HOST2}/g' ${env.VAR_YAML}"
-      }
-    }
-
     stage('excute ansible-playbook command') {
       steps {
-        sh "sudo -u ansible ansible-playbook ${env.WORKING_DIR}/wordpress_install.yml \
-            -i ${env.WORKING_DIR}/inventories/host \
-            --skip-tags 'httpd_install,language_php_71_install,rdb_mariadb_install' \
-            -e 'db_user=wp_catch_up' \
-            -e 'db_name=wp_catch_up' \
-            -e 'db_password=${env.WP_DB_PASSWORD}' \
-            -e 'httpd_conf_confd=wp_catch_up.conf' \
-            -e 'wp_install_dir=wordpress/catch_up' \
-            -e 'mariadb_root_password=${env.MARIADB_ROOT_PASSWORD}' \
-            | sudo -u ansible tee ${env.WORKING_DIR}/.ansible.log"
-      }
-    }
-
-    stage('Analyze Ansible log and output result') {
-      steps {
-        build job: 'ansible/common/analyze-ansible-log-and-output-result', 
+        build job: 'ansible/common/excute/playbook',
           parameters: [
+                        string(
+                          name: 'ANSIBLE_PLAYBOOK',
+                          value: "${env.ANSIBLE_PLAYBOOK}"
+                        ),
+                        credentials(
+                          name: 'INVENTORY',
+                          value: "${env.INVENTORY}"
+                        ),
                         string(
                           name: 'WORKING_DIR',
                           value: "${env.WORKING_DIR}"
+                        ),
+                        string(
+                          name: 'EXTRA_ARGS',
+                          value: "${env.EXTRA_ARGS}"
                         )
                       ]
       }
     }
-  } 
+  }
 }
