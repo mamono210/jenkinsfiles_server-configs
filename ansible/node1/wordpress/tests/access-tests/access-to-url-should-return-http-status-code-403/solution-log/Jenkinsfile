@@ -5,13 +5,15 @@ pipeline {
   agent any
 
   environment {
-    TEST_URL = "http://${env.NODE1_IP_ADDER}/wordpress/solution-log"
+    HOST = credentials('node1_ip_address')
+
+    TEST_URL = "http://${env.HOST}/wordpress/solution-log"
   }
 
   stages {
     stage('Access test') {
       steps {
-        build job: 'ansible/common/tests/access-tests/access-to-url-should-return-http-status-code-403', 
+        build job: 'ansible/common/tests/access-tests/access-to-url-should-return-http-status-code-403',
           parameters: [
                         string(
                           name: 'TEST_URL',
@@ -20,5 +22,5 @@ pipeline {
                       ]
       }
     }
-  } 
+  }
 }
