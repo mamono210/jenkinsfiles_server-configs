@@ -1,0 +1,36 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    ANSIBLE_PLAYBOOK = 'awscli_install'
+
+    INVENTORY = credentials('node1_ansible_inventory')
+
+    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
+  }
+
+  stages {
+    stage('excute ansible-playbook command') {
+      steps {
+        build job: 'ansible/common/excute/playbook',
+          parameters: [
+                        string(
+                          name: 'ANSIBLE_PLAYBOOK',
+                          value: "${env.ANSIBLE_PLAYBOOK}"
+                        ),
+                        credentials(
+                          name: 'INVENTORY',
+                          value: "${env.INVENTORY}"
+                        ),
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+  }
+}
