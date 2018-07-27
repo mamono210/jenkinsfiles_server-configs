@@ -1,0 +1,36 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    AD_HOC_COMMAND = "-m shell -a 'uname -a'"
+
+    INVENTORY = credentials('node1_ansible_inventory')
+
+    WORKING_DIR = "/home/ansible/.jenkins/node1_ad-hoc"
+  }
+
+  stages {
+    stage('excute ad-hoc command') {
+      steps {
+        build job: 'ansible/common/excute/ad-hoc',
+          parameters: [
+                        string(
+                          name: 'AD_HOC_COMMAND',
+                          value: "${env.AD_HOC_COMMAND}"
+                        ),
+                        credentials(
+                          name: 'INVENTORY',
+                          value: "${env.INVENTORY}"
+                        ),
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+  }
+}

@@ -1,0 +1,74 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  parameters {
+    string(
+      name: 'AD_HOC_COMMAND',
+      defaultValue: '',
+      description: 'Ansible ad-hoc command'
+    )
+    credentials(
+      name: 'INVENTORY',
+      defaultValue: '',
+      description: '',
+    )
+    string(
+      name: 'WORKING_DIR',
+      defaultValue: '/tmp/git-repo',
+      description: 'Job working directory'
+    )
+  }
+
+  stages {
+    stage('Retrive source code from Github') {
+      steps {
+        sh "sudo -u ansible rm -rf ${params.WORKING_DIR}"
+        sh "sudo -u ansible mkdir ${params.WORKING_DIR}"
+        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/ansible.git -b topic ${params.WORKING_DIR}"
+      }
+    }
+
+    stage('Configure ansible inventory file') {
+      steps {
+        wrap([$class: 'MaskPasswordsBuildWrapper']) {
+          sh "rm -rf /tmp${params.WORKING_DIR}"
+          sh "mkdir -p /tmp${params.WORKING_DIR}/inventories"
+          sh "touch /tmp${params.WORKING_DIR}/inventories/host"
+          sh "cat ${params.INVENTORY} > /tmp${params.WORKING_DIR}/inventories/host"
+        }
+      }
+    }
+
+    stage('excute ansible-playbook command') {
+      steps {
+        wrap([$class: 'MaskPasswordsBuildWrapper']) {
+          sh "sudo -u ansible ansible all \
+              -i /tmp${params.WORKING_DIR}/inventories/host \
+              ${params.AD_HOC_COMMAND} \
+              | sudo -u ansible tee ${params.WORKING_DIR}/.ansible.log"
+        }
+      }
+    }
+
+    stage('Analyze Ansible log and output result') {
+      steps {
+        script {
+
+          def output = sh(
+                          returnStdout: true,
+                          script: "sudo -u ansible head ${params.WORKING_DIR}/.ansible.log"
+                       )
+
+          if (output.contains("SUCCESS")) {
+            sh "echo success"
+          } else {
+            error "ansible-playbook error\n$output"
+          }
+        }
+      }
+    }
+  }
+}
