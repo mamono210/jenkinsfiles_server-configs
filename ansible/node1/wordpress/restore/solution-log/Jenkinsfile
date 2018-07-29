@@ -1,0 +1,48 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    ANSIBLE_PLAYBOOK = 'wordpress_restore'
+
+    INVENTORY = credentials('node1_ansible_inventory')
+
+    NEW_URL = credentials('node1_ip_address')
+
+    EXTRA_ARGS = "-e 'sql_dump_file=solution_log.sql' \
+                  -e 'wp_git_repo=https://github.com/TomonoriMatsumura/wp_solution-log.git' \
+                  -e 'wp_installed_path=/var/www/html/wordpress/solution-log' \
+                  -e 'wp_new_url=http://${env.NEW_URL}/wordpress/solution-log' \
+                  -e 'wp_old_url=http://49.212.213.226/wordpress/solution-log'" 
+
+    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
+  }
+
+  stages {
+    stage('excute ansible-playbook command') {
+      steps {
+        build job: 'ansible/common/excute/playbook',
+          parameters: [
+                        string(
+                          name: 'ANSIBLE_PLAYBOOK',
+                          value: "${env.ANSIBLE_PLAYBOOK}"
+                        ),
+                        credentials(
+                          name: 'INVENTORY',
+                          value: "${env.INVENTORY}"
+                        ),
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        ),
+                        string(
+                          name: 'EXTRA_ARGS',
+                          value: "${env.EXTRA_ARGS}"
+                        )
+                      ]
+      }
+    }
+  }
+}
