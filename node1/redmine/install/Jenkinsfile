@@ -22,7 +22,7 @@ pipeline {
 
     VAR_YAML = "${env.WORKING_DIR}/vars/redmine/install/default.yml"
 
-    PLAYBOOK = "${env.WORKING_DIR}/jenkinsfiles/ansible/node1/redmine/install/ansible-playbook.sh"
+    PLAYBOOK = "${env.WORKING_DIR}/jenkinsfiles/node1/redmine/install/ansible-playbook.sh"
   }
 
   stages {
