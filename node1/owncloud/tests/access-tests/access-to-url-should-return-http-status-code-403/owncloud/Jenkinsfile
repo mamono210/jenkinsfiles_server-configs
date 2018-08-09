@@ -5,7 +5,9 @@ pipeline {
   agent any
 
   environment {
-    TEST_URL = "http://${env.NODE1_IP_ADDER}/owncloud"
+    HOST_NAME = credentials('node1_ip_address')
+
+    TEST_URL = "http://${env.HOST_NAME}/owncloud"
   }
 
   stages {
