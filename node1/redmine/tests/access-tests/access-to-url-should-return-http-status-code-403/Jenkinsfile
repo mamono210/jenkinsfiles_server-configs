@@ -1,0 +1,26 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    HOST = credentials('node1_ip_address')
+
+    TEST_URL = "http://${env.HOST}/redmine"
+  }
+
+  stages {
+    stage('Access test') {
+      steps {
+        build job: 'ansible/common/tests/access-tests/access-to-url-should-return-http-status-code-403',
+          parameters: [
+                        string(
+                          name: 'TEST_URL',
+                          value: "${env.TEST_URL}"
+                        )
+                      ]
+      }
+    }
+  }
+}
