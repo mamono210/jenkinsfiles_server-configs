@@ -1,0 +1,172 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  stages {
+    stage('ssh') {
+      steps {
+        build job: 'node1/system/ssh/add-users_and_change-sshd-config-and-firewall'
+      }
+    }
+
+    stage('system_kernel_update-and-remove-old-kernels') {
+      steps {
+        build job: 'node1/ad-hoc/get-system-information'
+        build job: 'node1/ad-hoc/get-kernels'
+        build job: 'node1/system/kernel/update-and-remove-old-kernels'
+      }
+    }
+
+    stage('system-update-and-reboot') {
+      steps {
+        build job: 'node1/system/update-and-set-selinux-disabled'
+        build job: 'node1/ad-hoc/get-system-information'
+        build job: 'node1/ad-hoc/get-kernels'
+      }
+    }
+
+    stage('ansible_install') {
+      steps {
+        build job: 'node1/ansible/install'
+      }
+    }
+
+    stage('get-ansible-version') {
+      steps {
+        build job: 'node1/ad-hoc/get-ansible-version'
+      }
+    }
+
+    stage('awscli_install') {
+      steps {
+        build job: 'node1/awscli/install'
+      }
+    }
+
+    stage('get-awscli-version') {
+      steps {
+        build job: 'node1/ad-hoc/get-awscli-version'
+      }
+    }
+
+    stage('chrome_install') {
+      steps {
+        build job: 'node1/chrome/install'
+      }
+    }
+
+    stage('get-chrome-version') {
+      steps {
+        build job: 'node1/ad-hoc/get-chrome-version'
+      }
+    }
+
+    stage('docker_install') {
+      steps {
+        build job: 'node1/docker/install'
+      }
+    }
+
+    stage('get-docker-version') {
+      steps {
+        build job: 'node1/ad-hoc/get-docker-version'
+      }
+    }
+
+    stage('docker_compose_install') {
+      steps {
+        build job: 'node1/docker/compose/install'
+      }
+    }
+
+    stage('get-docker-compose-version') {
+      steps {
+        build job: 'node1/ad-hoc/get-docker-compose-version'
+      }
+    }
+
+    stage('exa_install') {
+      steps {
+        build job: 'node1/exa/install'
+      }
+    }
+
+    stage('jenkins_install') {
+      steps {
+        build job: 'node1/jenkins/install'
+      }
+    }
+
+    stage('owncloud_install') {
+      steps {
+        build job: 'node1/owncloud/install/owncloud'
+        build job: 'node1/owncloud/install/mydrive'
+      }
+    }
+
+    stage('owncloud_access-control-test') {
+      steps {
+        build job: 'node1/owncloud/tests/access-tests/access-to-url-should-return-http-status-code-403/owncloud'
+        build job: 'node1/owncloud/tests/access-tests/access-to-url-should-return-http-status-code-403/mydrive'
+      }
+    }
+
+    stage('redmine_install') {
+      steps {
+        build job: 'node1/redmine/install'
+      }
+    }
+
+    stage('redmine_access-control-test') {
+      steps {
+        build job: 'node1/redmine/tests/access-tests/access-to-url-should-return-http-status-code-403'
+      }
+    }
+
+    stage('selenium_install'){
+      steps {
+        build job: 'node1/selenium/python/chrome/install'
+      }
+    }
+
+    stage('terraform_install'){
+      steps {
+        build job: 'node1/terraform/install'
+      }
+    }
+
+    stage('get-terraform-version') {
+      steps {
+        build job: 'node1/ad-hoc/get-terraform-version'
+      }
+    }
+
+    stage('vim_install'){
+      steps {
+        build job: 'node1/vim/install'
+      }
+    }
+
+    stage('vnc_server_install'){
+      steps {
+        build job: 'node1/vnc/server/install'
+      }
+    }
+
+    stage('wordpress_install'){
+      steps {
+        build job: 'node1/wordpress/install/catch_up'
+        build job: 'node1/wordpress/install/solution-log'
+      }
+    }
+
+    stage('wordpress_access-control-test'){
+      steps {
+        build job: 'node1/wordpress/tests/access-tests/access-to-url-should-return-http-status-code-403/solution-log'
+        build job: 'node1/wordpress/tests/access-tests/access-to-url-should-return-http-status-code-403/catch_up'
+      }
+    }
+  }
+}
