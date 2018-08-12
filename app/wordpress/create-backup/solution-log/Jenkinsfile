@@ -9,9 +9,11 @@ pipeline {
 
     INVENTORY = credentials('app_ansible_inventory')
 
-    EXTRA_ARGS = "-e 'backup_data_path=/var/www/html/wp-backup_solution-log' \
+    EXTRA_ARGS = "-e 'backup_data_path=/home/wordpress/wp-backup_solution-log' \
+                  -e 'backup_data_group=wordpress' \
+                  -e 'backup_data_owner=wordpress' \
                   -e 'db_dump_data_sql=solution_log.sql' \
-                  -e 'wp_installed_path=/var/www/html/wordpress/solution-log'" 
+                  -e 'wp_installed_path=/var/www/html/wordpress/solution-log'"
 
     WORKING_DIR = "/home/ansible/.jenkins/app_${env.ANSIBLE_PLAYBOOK}"
   }
