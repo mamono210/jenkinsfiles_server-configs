@@ -14,11 +14,7 @@ pipeline {
 
     REDMINE_DB_PASS = credentials('redmine_db_password')
 
-    REDMINE_BACKUP_DATA_HOST = credentials('ansible_redmine_backup_data_host')
-
-    REQUIRE_HOST_1 = credentials('require_host_1')
-
-    REQUIRE_HOST_2 = credentials('require_host_2')
+    BACKUP_DATA_DIR = "/home/ansible/redmine-backup"
 
     WORKING_DIR = "/home/ansible/.jenkins/node1_redmine_restore"
 
@@ -36,14 +32,6 @@ pipeline {
       }
     }
 
-    stage('Configure ansible vars file') {
-      steps {
-        sh "sudo -u ansible sed -i -e 's/example.com: Require host example.com/${env.REQUIRE_HOST_1}: Require host ${env.REQUIRE_HOST_1}/g' ${env.VAR_YAML}"
-
-        sh "sudo -u ansible sed -i -e 's/127.0.0.1: Require ip 127.0.0.1/${env.REQUIRE_HOST_2}: Require host ${env.REQUIRE_HOST_2}/g' ${env.VAR_YAML}"
-      }
-    }
-
     stage('Create and configure ansible-playbook shellscript file') {
       steps {
         sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/jenkinsfiles ${env.WORKING_DIR}/jenkinsfiles -b topic"
@@ -54,7 +42,7 @@ pipeline {
 
         sh "sudo -u ansible sed -i -e \"s#DBPASSWORD#${env.REDMINE_DB_PASS}#g\" ${env.PLAYBOOK}"
 
-        sh "sudo -u ansible sed -i -e \"s#BACKUPDATAHOST#${env.REDMINE_BACKUP_DATA_HOST}#g\" ${env.PLAYBOOK}"
+        sh "sudo -u ansible sed -i -e \"s#BACKUP_DATA_DIR#${env.BACKUP_DATA_DIR}#g\" ${env.PLAYBOOK}"
 
         sh "sudo -u ansible sed -i -e \"s#SUPASSWORD#${env.ANSIBLE_HOST_PASSWORD}#g\" ${env.PLAYBOOK}"
       }

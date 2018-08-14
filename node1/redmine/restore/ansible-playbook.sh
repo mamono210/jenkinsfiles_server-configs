@@ -8,7 +8,7 @@ expect -c "
     -i "example.com:22," \
     -u ansible \
     -e "db_password=DBPASSWORD" \
-    -e "backup_data_host=BACKUPDATAHOST" \
+    -e "backup_data_dir=BACKUP_DATA_DIR" \
     | tee /WORKDIR/.ansible.log\"
 
     expect SU*
