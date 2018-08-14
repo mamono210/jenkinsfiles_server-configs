@@ -12,9 +12,9 @@ pipeline {
     REDMINE_DB_PASS = credentials('redmine_db_password')
 
     EXTRA_ARGS = "-e 'db_password=${env.REDMINE_DB_PASS}' \
-                  -e 'backup_data_path=/home/rmbackup/data' \
-                  -e 'backup_data_group=wpbackup' \
-                  -e 'backup_data_owner=wpbackup'"
+                  -e 'backup_data_path=/home/ansible/redmine-backup' \
+                  -e 'backup_data_group=ansible' \
+                  -e 'backup_data_owner=ansible'"
 
     WORKING_DIR = "/home/ansible/.jenkins/app_${env.ANSIBLE_PLAYBOOK}"
   }
