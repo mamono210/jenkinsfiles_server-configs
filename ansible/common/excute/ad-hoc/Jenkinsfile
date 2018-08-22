@@ -23,14 +23,6 @@ pipeline {
   }
 
   stages {
-    stage('Retrive source code from Github') {
-      steps {
-        sh "sudo -u ansible rm -rf ${params.WORKING_DIR}"
-        sh "sudo -u ansible mkdir ${params.WORKING_DIR}"
-        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/ansible.git -b topic ${params.WORKING_DIR}"
-      }
-    }
-
     stage('Configure ansible inventory file') {
       steps {
         wrap([$class: 'MaskPasswordsBuildWrapper']) {
