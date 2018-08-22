@@ -12,6 +12,14 @@ pipeline {
     VAULT_PASSWORD_FILE = credentials('ansible_vault_password_file')
   }
 
+parameters {
+    string(
+      name: 'GIT_BRANCH_ANSIBLE',
+      defaultValue: 'topic',
+      description: 'Git branch name of ansible GitHub TomonoriMatsumura repository'
+    )
+  }
+
   stages {
     stage('set ansible vault password file') {
       steps {
@@ -49,6 +57,10 @@ pipeline {
                             password(
                               name: 'EXTRA_ARGS',
                               value: "--vault-password-file /tmp/vault_password -e 'ssh_port=${env.ANSIBLE_PORT}' -e 'redmine_ip=${env.REDMINE_IP}'"
+                            ),
+                            string(
+                              name: 'GIT_BRANCH_ANSIBLE',
+                              value: "${params.GIT_BRANCH_ANSIBLE}"
                             ),
                             credentials(
                               name: 'INVENTORY',

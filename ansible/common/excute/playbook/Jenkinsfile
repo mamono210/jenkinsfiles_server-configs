@@ -15,6 +15,11 @@ pipeline {
       defaultValue: '',
       description: 'Ansible playbook extra arguments'
     )
+    string(
+      name: 'GIT_BRANCH_ANSIBLE',
+      defaultValue: 'topic',
+      description: 'Git branch name of ansible GitHub TomonoriMatsumura repository'
+    )
     credentials(
       name: 'INVENTORY',
       defaultValue: '',
@@ -32,7 +37,7 @@ pipeline {
       steps {
         sh "sudo -u ansible rm -rf ${params.WORKING_DIR}"
         sh "sudo -u ansible mkdir ${params.WORKING_DIR}"
-        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/ansible.git -b topic ${params.WORKING_DIR}"
+        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/ansible.git -b ${params.GIT_BRANCH_ANSIBLE} ${params.WORKING_DIR}"
       }
     }
 
