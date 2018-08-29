@@ -1,0 +1,74 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  parameters {
+    string(
+      name: 'GITHUB_REPOSITORY_URL',
+      defaultValue: 'https://github.com/',
+      description: 'URL of target GitHub repository'
+    )
+    string(
+      name: 'GITHUB_REVISION',
+      defaultValue: 'master',
+      description: 'Branch name or revision of target GitHub repository'
+    )
+    string(
+      name: 'GIT_BRANCH_ANSIBLE',
+      defaultValue: 'master',
+      description: 'Git branch name or revision of ansible GitHub TomonoriMatsumura repository'
+    )
+  }
+
+  environment {
+    ANSIBLE_PLAYBOOK = 'github_code-to-pdf'
+
+    INVENTORY = credentials('node1_ansible_inventory')
+
+    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
+  }
+
+  stages {
+    stage('excute ansible-playbook command') {
+      steps {
+        script {
+          def workdir = sh(
+                            returnStdout: true,
+                            script: "echo ${params.GITHUB_REPOSITORY_URL}/${params.GITHUB_REVISION} \
+                                      | sed -e 's#https://github.com/##g' \
+                                      | sed -e 's#/#_#g' \
+                                      | sed -e 's/:/_/g'"
+                         )
+
+        build job: 'ansible/common/excute/playbook',
+          parameters: [
+                        string(
+                          name: 'ANSIBLE_PLAYBOOK',
+                          value: "${env.ANSIBLE_PLAYBOOK}"
+                        ),
+                        credentials(
+                          name: 'INVENTORY',
+                          value: "${env.INVENTORY}"
+                        ),
+                        string(
+                          name: 'EXTRA_ARGS',
+                          value: "-e 'github_code_to_pdf_work_dir=$workdir' \
+                                  -e 'github_repository_url=${env.GITHUB_REPOSITORY_URL}' \
+                                  -e 'github_repository_version=${params.GITHUB_REVISION}'"
+                        ),
+                        string(
+                          name: 'GIT_BRANCH_ANSIBLE',
+                          value: "${params.GIT_BRANCH_ANSIBLE}"
+                        ),
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+        }
+      }
+    }
+  }
+}
