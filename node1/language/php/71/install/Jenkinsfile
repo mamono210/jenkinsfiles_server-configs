@@ -1,0 +1,54 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    ANSIBLE_PLAYBOOK = 'wordpress_install'
+
+    EXTRA_ARGS = "--tags 'language_php_71_install'"
+
+    INVENTORY = credentials('node1_ansible_inventory')
+
+    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
+  }
+
+  parameters {
+    string(
+      name: 'GIT_BRANCH_ANSIBLE',
+      defaultValue: 'topic',
+      description: 'Git branch name of ansible GitHub TomonoriMatsumura repository'
+    )
+  }
+
+  stages {
+    stage('excute ansible-playbook command') {
+      steps {
+        build job: 'ansible/common/excute/playbook',
+          parameters: [
+                        string(
+                          name: 'ANSIBLE_PLAYBOOK',
+                          value: "${env.ANSIBLE_PLAYBOOK}"
+                        ),
+                        string(
+                          name: 'EXTRA_ARGS',
+                          value: "${env.EXTRA_ARGS}"
+                        ),
+                        credentials(
+                          name: 'INVENTORY',
+                          value: "${env.INVENTORY}"
+                        ),
+                        string(
+                          name: 'GIT_BRANCH_ANSIBLE',
+                          value: "${params.GIT_BRANCH_ANSIBLE}"
+                        ),
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        )
+                      ]
+      }
+    }
+  }
+}
