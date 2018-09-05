@@ -20,7 +20,9 @@ pipeline {
 
     VAR_YAML = "${env.WORKING_DIR}/vars/redmine/restore/default.yml"
 
-    PLAYBOOK = "${env.WORKING_DIR}/jenkinsfiles/node1/redmine/restore/ansible-playbook.sh"
+    PLAYBOOK_TMP = "/var/lib/jenkins/working_dir/ansible-playbook.sh"
+
+    PLAYBOOK = "${env.WORKING_DIR}/ansible-playbook.sh"
   }
 
   stages {
@@ -32,10 +34,48 @@ pipeline {
       }
     }
 
-    stage('Create and configure ansible-playbook shellscript file') {
+    stage('Create ansible-playbook shellscript file') {
       steps {
-        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/jenkinsfiles ${env.WORKING_DIR}/jenkinsfiles -b topic"
+        sh "touch ${env.PLAYBOOK_TMP}"
 
+        sh "echo '#!/bin/sh' > ${env.PLAYBOOK_TMP}"
+
+        sh "echo 'expect -c \"' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    set timeout -1' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    spawn bash -c \\\"ansible-playbook /WORKDIR/redmine_restore.yml \\' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    --become-method=su \\' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    --ask-become-pass \\' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    -i \"example.com:22,\" \\' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    -u ansible \\' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    -e \"db_password=DBPASSWORD\" \\' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    -e \"backup_data_dir=BACKUP_DATA_DIR\" \\' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    | tee /WORKDIR/.ansible.log\\\"' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    expect SU*' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    send -- \\\"SUPASSWORD\\n\\\"' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    expect eof' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    exit' >> ${env.PLAYBOOK_TMP}"
+
+        sh "echo '    \"' >> ${env.PLAYBOOK_TMP}"
+
+        sh "sudo -u ansible cp ${env.PLAYBOOK_TMP} ${env.PLAYBOOK}"
+      }
+    }
+
+    stage('Configure ansible-playbook shellscript file') {
+      steps {
         sh "sudo -u ansible sed -i -e \"s#/WORKDIR#${env.WORKING_DIR}#g\" ${env.PLAYBOOK}"
 
         sh "sudo -u ansible sed -i -e \"s#example.com:22,#${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT},#g\" ${env.PLAYBOOK}"
@@ -54,7 +94,7 @@ pipeline {
       }
     }
 
-stage('Analyze Ansible log and output result') {
+    stage('Analyze Ansible log and output result') {
       steps {
         script {
 
