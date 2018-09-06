@@ -1,0 +1,24 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    HOST = credentials('jenkinsmaster_ip_address')
+
+    WORK_DIR = '/var/lib/jenkins/work_dir/jenkins-cli'
+
+    JENKINS_CLI_URL = "http://${env.HOST}/jenkins/jnlpJars/jenkins-cli.jar"
+  }
+
+  stages {
+    stage('Retrive jenkins cli') {
+      steps {
+        sh "rm -rf ${env.WORK_DIR}"
+        sh "mkdir -p ${env.WORK_DIR}"
+        sh "curl ${env.JENKINS_CLI_URL} --output '${env.WORK_DIR}/jenkins-cli.jar'"
+      }
+    }
+  }
+}
