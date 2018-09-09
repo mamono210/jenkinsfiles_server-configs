@@ -1,0 +1,33 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    ANSIBLE_HOST = credentials('app_ip_address')
+
+    ANSIBLE_PORT = credentials('ansible_port')
+
+    GIT_REPO = "ssh://git@${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT}/var/git/jenkins-backup"
+
+    WORKING_DIR = "/home/ansible/.jenkins/jenkins-backup-data"
+  }
+
+  parameters {
+    string(
+      name: 'GIT_RETRIEVE_BRANCH',
+      defaultValue: 'master',
+      description: 'Git branch to retrieve'
+    )
+  }
+
+  stages {
+    stage('Retrive source code from Git Server') {
+      steps {
+        sh "sudo -u ansible rm -rf ${env.WORKING_DIR}"
+        sh "sudo -u ansible git clone ${env.GIT_REPO} -b ${params.GIT_RETRIEVE_BRANCH} ${env.WORKING_DIR}"
+      }
+    }
+  }
+}
