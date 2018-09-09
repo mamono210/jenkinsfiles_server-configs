@@ -1,0 +1,73 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    ANSIBLE_HOST = credentials('app_ip_address')
+
+    ANSIBLE_PORT = credentials('ansible_port')
+
+    GIT_REPO = "ssh://git@${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT}/var/git/jenkins-backup"
+  }
+
+  parameters {
+    string(
+      name: 'GIT_RETRIEVE_BRANCH',
+      defaultValue: 'master',
+      description: 'Git branch to retrieve'
+    )
+    string(
+      name: 'GIT_PUSH_BRANCH',
+      defaultValue: 'test',
+      description: 'Git Repo branch to push'
+    )
+    string(
+      name: 'GIT_COMMIT_MSG',
+      defaultValue: 'this is test commit',
+      description: 'Commit message to excute git push'
+    )
+  }
+
+  stages {
+    stage('Retrive source code from Git Server') {
+      steps {
+        sh "git clone ${env.GIT_REPO} -b ${params.GIT_RETRIEVE_BRANCH}"
+        dir("jenkins-backup") {
+          sh "git checkout -b ${params.GIT_PUSH_BRANCH} ${params.GIT_RETRIEVE_BRANCH}"
+          sh "rm -rf data/"
+        }
+      }
+    }
+
+    stage('Replace old Jenkins backup data by new one') {
+      steps {
+        dir("jenkins-backup") {
+          sh "git clone https://github.com/sue445/jenkins-backup-script.git"
+          sh "jenkins-backup-script/jenkins-backup.sh /var/lib/jenkins archive.tar.gz"
+          sh "tar xfvz archive.tar.gz"
+          sh "rm -rf archive.tar.gz"
+          sh "rm -rf jenkins-backup-script"
+          sh "mv jenkins-backup/ data/"
+        }
+      }
+    }
+
+    stage('Git push') {
+      steps {
+        dir("jenkins-backup") {
+          sh "git add -A"
+          sh "git commit -m '${params.GIT_COMMIT_MSG}'"
+          sh "git push origin ${params.GIT_PUSH_BRANCH}"
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      cleanWs()
+    }
+  }
+}
