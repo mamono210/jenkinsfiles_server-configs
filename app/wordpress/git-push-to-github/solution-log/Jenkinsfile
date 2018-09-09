@@ -10,8 +10,6 @@ pipeline {
     ANSIBLE_PORT = credentials('ansible_port')
 
     GIT_REPO = "ssh://wpbackup@${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT}/home/wpbackup/git/solution-log"
-
-    WORKING_DIR = "/var/lib/jenkins/working_dir/app_wordpress_solution_log"
   }
 
   parameters {
@@ -35,11 +33,8 @@ pipeline {
   stages {
     stage('Retrive source code from Git Server') {
       steps {
-        sh "rm -rf ${env.WORKING_DIR}"
-        dir("${env.WORKING_DIR}") {
-          sh "git clone ${env.GIT_REPO} -b ${params.GIT_RETRIEVE_BRANCH}"
-        }
-        dir("${env.WORKING_DIR}/solution-log") {
+        sh "git clone ${env.GIT_REPO} -b ${params.GIT_RETRIEVE_BRANCH}"
+        dir("solution-log") {
           sh "git checkout -b ${params.GIT_PUSH_BRANCH} ${params.GIT_RETRIEVE_BRANCH}"
           sh "rm -rf *"
         }
@@ -48,7 +43,7 @@ pipeline {
 
     stage('Retrive Wordpress backup data from wordpress running site') {
       steps {
-        dir("${env.WORKING_DIR}/solution-log") {
+        dir("solution-log") {
           sh "scp -P ${env.ANSIBLE_PORT} wpbackup@${env.ANSIBLE_HOST}:/home/wpbackup/solution-log/wp-content.tar.gz ./"
           sh "scp -P ${env.ANSIBLE_PORT} wpbackup@${env.ANSIBLE_HOST}:/home/wpbackup/solution-log/wordpress.sql ./"
           sh "tar xfvz wp-content.tar.gz"
@@ -59,12 +54,18 @@ pipeline {
 
     stage('Git push') {
       steps {
-        dir("${env.WORKING_DIR}/solution-log") {
+        dir("solution-log") {
           sh "git add -A"
           sh "git commit -m '${params.GIT_COMMIT_MSG}'"
           sh "git push origin ${params.GIT_PUSH_BRANCH}"
         }
       }
+    }
+  }
+
+  post {
+    always {
+      cleanWs()
     }
   }
 }
