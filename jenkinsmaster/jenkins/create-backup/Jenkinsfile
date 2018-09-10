@@ -9,7 +9,7 @@ pipeline {
 
     ANSIBLE_PORT = credentials('ansible_port')
 
-    GIT_REPO = "ssh://git@${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT}/var/git/jenkins-backup"
+    GIT_REPO = "ssh://jenkinsbackup@${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT}/home/jenkinsbackup/git/backup"
   }
 
   parameters {
@@ -34,7 +34,7 @@ pipeline {
     stage('Retrive source code from Git Server') {
       steps {
         sh "git clone ${env.GIT_REPO} -b ${params.GIT_RETRIEVE_BRANCH}"
-        dir("jenkins-backup") {
+        dir("backup") {
           sh "git checkout -b ${params.GIT_PUSH_BRANCH} ${params.GIT_RETRIEVE_BRANCH}"
           sh "rm -rf data/"
         }
@@ -43,7 +43,7 @@ pipeline {
 
     stage('Replace old Jenkins backup data by new one') {
       steps {
-        dir("jenkins-backup") {
+        dir("backup") {
           sh "git clone https://github.com/sue445/jenkins-backup-script.git"
           sh "jenkins-backup-script/jenkins-backup.sh /var/lib/jenkins archive.tar.gz"
           sh "tar xfvz archive.tar.gz"
@@ -56,7 +56,7 @@ pipeline {
 
     stage('Git push') {
       steps {
-        dir("jenkins-backup") {
+        dir("backup") {
           sh "git add -A"
           sh "git commit -m '${params.GIT_COMMIT_MSG}'"
           sh "git push origin ${params.GIT_PUSH_BRANCH}"
