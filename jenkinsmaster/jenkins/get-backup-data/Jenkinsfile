@@ -5,29 +5,62 @@ pipeline {
   agent any
 
   environment {
-    ANSIBLE_HOST = credentials('app_ip_address')
+    GIT_HOST = credentials('app_ip_address')
 
-    ANSIBLE_PORT = credentials('ansible_port')
+    SSH_PORT = credentials('ansible_port')
 
-    GIT_REPO = "ssh://git@${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT}/var/git/jenkins-backup"
+    GIT_REPO = "ssh://jenkinsbackup@${env.GIT_HOST}:${env.SSH_PORT}/home/jenkinsbackup/git/backup"
 
-    WORKING_DIR = "/home/ansible/.jenkins/jenkins-backup-data"
+    WORKING_DIR = "jenkins_get-backup"
   }
 
   parameters {
     string(
-      name: 'GIT_RETRIEVE_BRANCH',
+      name: 'GIT_RETRIEVE_BRANCHS',
       defaultValue: 'master',
-      description: 'Git branch to retrieve'
+      description: 'Git branch or tag to retrieve'
     )
   }
 
   stages {
     stage('Retrive source code from Git Server') {
       steps {
-        sh "sudo -u ansible rm -rf ${env.WORKING_DIR}"
-        sh "sudo -u ansible git clone ${env.GIT_REPO} -b ${params.GIT_RETRIEVE_BRANCH} ${env.WORKING_DIR}"
+        checkout(
+          [
+            $class: 'GitSCM',
+            branches: [
+              [
+                name: "*/${params.GIT_RETRIEVE_BRANCHS}"
+              ]
+            ],
+            extensions: [
+              [
+                $class: 'RelativeTargetDirectory',
+                relativeTargetDir: "${env.WORKING_DIR}"
+              ]
+            ],
+            doGenerateSubmoduleConfigurations: false,
+            submoduleCfg: [],
+            userRemoteConfigs: [
+              [
+                url: "${env.GIT_REPO}"
+              ]
+            ]
+          ]
+        )
+
+        dir("${env.WORKING_DIR}/data") {
+          sh "tar cfvz jenkins.tar.gz *"
+          sh "chmod 755 jenkins.tar.gz"
+          sh "sudo -u ansible cp jenkins.tar.gz /home/ansible/.jenkins"
+        }
       }
+    }
+  }
+
+  post {
+    always {
+      cleanWs()
     }
   }
 }
