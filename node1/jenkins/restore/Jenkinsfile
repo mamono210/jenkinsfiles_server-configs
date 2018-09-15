@@ -9,9 +9,7 @@ pipeline {
 
     INVENTORY = credentials('node1_ansible_inventory')
 
-    JENKINS_BACKUP_DATA_HOST = credentials('jenkins_ip_address')
-
-    EXTRA_ARGS = "-e 'jenkins_backup_url=http://${env.JENKINS_BACKUP_DATA_HOST}/data/jenkins.tar.gz'"
+    EXTRA_ARGS = "-e 'local_data_dir=/home/ansible/.jenkins'"
 
     WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
   }
