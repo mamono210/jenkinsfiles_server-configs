@@ -8,7 +8,7 @@ pipeline {
     string(
       name: 'ANSIBLE_PLAYBOOK',
       defaultValue: '',
-      description: 'Ansible playbook name'
+      description: 'Ansible playbook'
     )
     password(
       name: 'EXTRA_ARGS',
@@ -16,9 +16,9 @@ pipeline {
       description: 'Ansible playbook extra arguments'
     )
     string(
-      name: 'GIT_BRANCH_ANSIBLE',
-      defaultValue: 'topic',
-      description: 'Git branch name of ansible GitHub TomonoriMatsumura repository'
+      name: 'GIT_BRANCHES_ANSIBLE',
+      defaultValue: '*/master',
+      description: "Git branch or tag name or commit id to retrieve of ${env.ANSIBLE_GITHUB_URL}"
     )
     credentials(
       name: 'INVENTORY',
@@ -27,7 +27,7 @@ pipeline {
     )
     string(
       name: 'WORKING_DIR',
-      defaultValue: '/tmp/git-repo',
+      defaultValue: 'git-repo',
       description: 'Job working directory'
     )
   }
@@ -35,47 +35,78 @@ pipeline {
   stages {
     stage('Retrive source code from Github') {
       steps {
-        sh "sudo -u ansible rm -rf ${params.WORKING_DIR}"
-        sh "sudo -u ansible mkdir ${params.WORKING_DIR}"
-        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/ansible.git -b ${params.GIT_BRANCH_ANSIBLE} ${params.WORKING_DIR}"
+        checkout(
+          [
+            $class: 'GitSCM',
+            branches: [
+              [
+                name: "${params.GIT_BRANCHES_ANSIBLE}"
+              ]
+            ],
+            extensions: [
+              [
+                $class: 'RelativeTargetDirectory',
+                relativeTargetDir: "${params.WORKING_DIR}"
+              ]
+            ],
+            doGenerateSubmoduleConfigurations: false,
+            submoduleCfg: [],
+            userRemoteConfigs: [
+              [
+                url: "${env.ANSIBLE_GITHUB_URL}"
+              ]
+            ]
+          ]
+        )
+      }
+    }
+
+    stage('Create ansible.cfg file') {
+      steps {
+        dir ("${params.WORKING_DIR}") {
+            sh "echo '[defaults]' > ansible.cfg"
+            sh "echo 'host_key_checking = False' >> ansible.cfg"
+        }
       }
     }
 
     stage('Configure ansible inventory file') {
       steps {
-        wrap([$class: 'MaskPasswordsBuildWrapper']) {
-          sh "rm -rf /tmp${params.WORKING_DIR}"
-          sh "mkdir -p /tmp${params.WORKING_DIR}/inventories"
-          sh "touch /tmp${params.WORKING_DIR}/inventories/host"
-          sh "cat ${params.INVENTORY} > /tmp${params.WORKING_DIR}/inventories/host"
+        dir ("${params.WORKING_DIR}") {
+          wrap([$class: 'MaskPasswordsBuildWrapper']) {
+            sh "cat ${params.INVENTORY} > inventories/host"
+          }
         }
       }
     }
 
     stage('excute ansible-playbook command') {
       steps {
-        wrap([$class: 'MaskPasswordsBuildWrapper']) {
-          sh "sudo -u ansible ansible-playbook ${params.WORKING_DIR}/${params.ANSIBLE_PLAYBOOK}.yml \
-              -i /tmp${params.WORKING_DIR}/inventories/host \
-              ${params.EXTRA_ARGS} \
-              | sudo -u ansible tee ${params.WORKING_DIR}/.ansible.log"
+        dir ("${params.WORKING_DIR}") {
+          wrap([$class: 'MaskPasswordsBuildWrapper']) {
+            sh "ansible-playbook ${params.ANSIBLE_PLAYBOOK}.yml \
+                -i inventories/host \
+                ${params.EXTRA_ARGS} \
+                | tee ansible.log"
+          }
         }
       }
     }
 
     stage('Analyze Ansible log and output result') {
       steps {
-        script {
+        dir ("${params.WORKING_DIR}") {
+          script {
+            def output = sh(
+                            returnStdout: true,
+                            script: "tail -n 2 ansible.log"
+                         )
 
-          def output = sh(
-                          returnStdout: true,
-                          script: "sudo -u ansible tail -n 2 ${params.WORKING_DIR}/.ansible.log"
-                       )
-
-          if (output.contains("unreachable=0") && output.contains("failed=0")) {
-            sh "echo success"
-          } else {
-            error "ansible-playbook error\n$output"
+            if (output.contains("unreachable=0") && output.contains("failed=0")) {
+              sh "echo success"
+            } else {
+              error "ansible-playbook error\n$output"
+            }
           }
         }
       }
