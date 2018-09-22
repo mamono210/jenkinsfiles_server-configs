@@ -17,47 +17,58 @@ pipeline {
     )
     string(
       name: 'WORKING_DIR',
-      defaultValue: '/tmp/git-repo',
+      defaultValue: '/tmp/ad-hoc',
       description: 'Job working directory'
     )
   }
 
   stages {
+    stage('Create ansible.cfg file') {
+      steps {
+        sh "rm -rf ${params.WORKING_DIR}"
+        sh "mkdir -p ${params.WORKING_DIR}"
+        dir ("${params.WORKING_DIR}") {
+          sh "echo '[defaults]' > ansible.cfg"
+          sh "echo 'host_key_checking = False' >> ansible.cfg"
+        }
+      }
+    }
+
     stage('Configure ansible inventory file') {
       steps {
-        wrap([$class: 'MaskPasswordsBuildWrapper']) {
-          sh "rm -rf /tmp${params.WORKING_DIR}"
-          sh "mkdir -p /tmp${params.WORKING_DIR}/inventories"
-          sh "touch /tmp${params.WORKING_DIR}/inventories/host"
-          sh "cat ${params.INVENTORY} > /tmp${params.WORKING_DIR}/inventories/host"
+        dir ("${params.WORKING_DIR}") {
+          wrap([$class: 'MaskPasswordsBuildWrapper']) {
+            sh "cat ${params.INVENTORY} > inventory"
+          }
         }
       }
     }
 
     stage('excute ansible-playbook command') {
       steps {
-        wrap([$class: 'MaskPasswordsBuildWrapper']) {
-          sh "sudo -u ansible ansible all \
-              -i /tmp${params.WORKING_DIR}/inventories/host \
+        dir ("${params.WORKING_DIR}") {
+          sh "ansible all \
+              -i inventory \
               ${params.AD_HOC_COMMAND} \
-              | sudo -u ansible tee ${params.WORKING_DIR}/.ansible.log"
+              | tee ansible.log"
         }
       }
     }
 
     stage('Analyze Ansible log and output result') {
       steps {
-        script {
+        dir ("${params.WORKING_DIR}") {
+          script {
+            def output = sh(
+                            returnStdout: true,
+                            script: "head ansible.log"
+                         )
 
-          def output = sh(
-                          returnStdout: true,
-                          script: "sudo -u ansible head ${params.WORKING_DIR}/.ansible.log"
-                       )
-
-          if (output.contains("SUCCESS")) {
-            sh "echo success"
-          } else {
-            error "ansible-playbook error\n$output"
+            if (output.contains("SUCCESS")) {
+              sh "echo success"
+            } else {
+              error "ansible-playbook error\n$output"
+            }
           }
         }
       }
