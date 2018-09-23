@@ -9,14 +9,14 @@ pipeline {
 
     INVENTORY = credentials('node1_ansible_inventory')
 
-    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
+    WORKING_DIR = "node1_${env.ANSIBLE_PLAYBOOK}"
   }
 
   parameters {
     string(
-      name: 'GIT_BRANCH_ANSIBLE',
-      defaultValue: 'topic',
-      description: 'Git branch name of ansible GitHub TomonoriMatsumura repository'
+      name: 'GIT_BRANCHES_ANSIBLE',
+      defaultValue: '*/master',
+      description: "Git branch or tag name or commit id to retrieve of ${env.ANSIBLE_GITHUB_URL}"
     )
   }
 
@@ -34,8 +34,8 @@ pipeline {
                           value: "${env.INVENTORY}"
                         ),
                         string(
-                          name: 'GIT_BRANCH_ANSIBLE',
-                          value: "${params.GIT_BRANCH_ANSIBLE}"
+                          name: 'GIT_BRANCHES_ANSIBLE',
+                          value: "${params.GIT_BRANCHES_ANSIBLE}"
                         ),
                         string(
                           name: 'WORKING_DIR',
