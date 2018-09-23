@@ -18,101 +18,145 @@ pipeline {
 
     REQUIRE_HOST_2 = credentials('require_host_2')
 
-    WORKING_DIR = "/home/ansible/.jenkins/node1_redmine_install"
+    WORKING_DIR = "node1_redmine_install"
 
-    VAR_YAML = "${env.WORKING_DIR}/vars/redmine/install/default.yml"
+    VAR_YAML = "vars/redmine/install/default.yml"
 
-    PLAYBOOK = "${env.WORKING_DIR}/ansible-playbook.sh"
+    PLAYBOOK = "ansible-playbook.sh"
 
-    PLAYBOOK_TMP = "/var/lib/jenkins/working_dir/ansible-playbook.sh"
+    PLAYBOOK_TMP = "tmp.ansible-playbook.sh"
+  }
+
+  parameters {
+    string(
+      name: 'GIT_BRANCHES_ANSIBLE',
+      defaultValue: '*/master',
+      description: "Git branch or tag name or commit id to retrieve of ${env.ANSIBLE_GITHUB_URL}"
+    )
   }
 
   stages {
     stage('Retrive source code from Github') {
       steps {
-        sh "sudo -u ansible rm -rf ${env.WORKING_DIR}"
-        sh "sudo -u ansible mkdir ${env.WORKING_DIR}"
-        sh "sudo -u ansible git clone https://github.com/TomonoriMatsumura/ansible.git -b topic ${env.WORKING_DIR}"
+        checkout(
+          [
+            $class: 'GitSCM',
+            branches: [
+              [
+                name: "${params.GIT_BRANCHES_ANSIBLE}"
+              ]
+            ],
+            extensions: [
+              [
+                $class: 'RelativeTargetDirectory',
+                relativeTargetDir: "${env.WORKING_DIR}"
+              ]
+            ],
+            doGenerateSubmoduleConfigurations: false,
+            submoduleCfg: [],
+            userRemoteConfigs: [
+              [
+                url: "${env.ANSIBLE_GITHUB_URL}"
+              ]
+            ]
+          ]
+        )
+      }
+    }
+
+    stage('Create ansible.cfg file') {
+      steps {
+        dir ("${env.WORKING_DIR}") {
+            sh "echo '[defaults]' > ansible.cfg"
+            sh "echo 'host_key_checking = False' >> ansible.cfg"
+        }
       }
     }
 
     stage('Configure ansible vars file') {
       steps {
-        sh "sudo -u ansible sed -i -e 's/example.com: Require host example.com/${env.REQUIRE_HOST_1}: Require host ${env.REQUIRE_HOST_1}/g' ${env.VAR_YAML}"
+        dir ("${env.WORKING_DIR}") {
+          sh "sed -i -e 's/example.com: Require host example.com/${env.REQUIRE_HOST_1}: Require host ${env.REQUIRE_HOST_1}/g' ${env.VAR_YAML}"
 
-        sh "sudo -u ansible sed -i -e 's/127.0.0.1: Require ip 127.0.0.1/${env.REQUIRE_HOST_2}: Require host ${env.REQUIRE_HOST_2}/g' ${env.VAR_YAML}"
+          sh "sed -i -e 's/127.0.0.1: Require ip 127.0.0.1/${env.REQUIRE_HOST_2}: Require host ${env.REQUIRE_HOST_2}/g' ${env.VAR_YAML}"
+        }
       }
     }
 
     stage('Create ansible-playbook shellscript file') {
       steps {
-        sh "touch ${env.PLAYBOOK_TMP}"
+        dir ("${env.WORKING_DIR}") {
+          sh "touch ${env.PLAYBOOK_TMP}"
 
-        sh "echo '#!/bin/sh' > ${env.PLAYBOOK_TMP}"
+          sh "echo '#!/bin/sh' > ${env.PLAYBOOK_TMP}"
 
-        sh "echo 'expect -c \"' >> ${env.PLAYBOOK_TMP}"
+          sh "echo 'expect -c \"' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    set timeout -1' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    set timeout -1' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    spawn bash -c \\\"ansible-playbook /WORKDIR/redmine_install.yml \\' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    spawn bash -c \\\"ansible-playbook redmine_install.yml \\' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    --become-method=su \\' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    --become-method=su \\' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    --ask-become-pass \\' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    --ask-become-pass \\' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    -i \"example.com:22,\" \\' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    -i \"example.com:22,\" \\' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    -u ansible \\' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    -u ansible \\' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    -e \"db_password=DBPASSWORD\" \\' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    -e \"db_password=DBPASSWORD\" \\' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    | tee /WORKDIR/.ansible.log\\\"' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    | tee ansible.log\\\"' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    expect SU*' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    expect SU*' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    send -- \\\"SUPASSWORD\\n\\\"' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    send -- \\\"SUPASSWORD\\n\\\"' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    expect eof' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    expect eof' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    exit' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    exit' >> ${env.PLAYBOOK_TMP}"
 
-        sh "echo '    \"' >> ${env.PLAYBOOK_TMP}"
+          sh "echo '    \"' >> ${env.PLAYBOOK_TMP}"
 
-        sh "sudo -u ansible cp ${env.PLAYBOOK_TMP} ${env.PLAYBOOK}"
+          sh "cp ${env.PLAYBOOK_TMP} ${env.PLAYBOOK}"
+        }
       }
     }
 
     stage('Configure ansible-playbook shellscript file') {
       steps {
-        sh "sudo -u ansible sed -i -e \"s#/WORKDIR#${env.WORKING_DIR}#g\" ${env.PLAYBOOK}"
+        dir ("${env.WORKING_DIR}") {
+          sh "sed -i -e \"s#example.com:22,#${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT},#g\" ${env.PLAYBOOK}"
 
-        sh "sudo -u ansible sed -i -e \"s#example.com:22,#${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT},#g\" ${env.PLAYBOOK}"
+          sh "sed -i -e \"s#DBPASSWORD#${env.REDMINE_DB_PASS}#g\" ${env.PLAYBOOK}"
 
-        sh "sudo -u ansible sed -i -e \"s#DBPASSWORD#${env.REDMINE_DB_PASS}#g\" ${env.PLAYBOOK}"
-
-        sh "sudo -u ansible sed -i -e \"s#SUPASSWORD#${env.ANSIBLE_HOST_PASSWORD}#g\" ${env.PLAYBOOK}"
+          sh "sed -i -e \"s#SUPASSWORD#${env.ANSIBLE_HOST_PASSWORD}#g\" ${env.PLAYBOOK}"
+        }
       }
     }
 
     stage('excute ansible-playbook command') {
       steps {
-        sh "sudo -u ansible sh ${env.PLAYBOOK}"
+        dir ("${env.WORKING_DIR}") {
+          sh "sh ${env.PLAYBOOK}"
+        }
       }
     }
 
     stage('Analyze Ansible log and output result') {
       steps {
         script {
+          dir ("${env.WORKING_DIR}") {
+            def output = sh(
+                            returnStdout: true,
+                            script: "tail -n 2 ansible.log"
+                         )
 
-          def output = sh(
-                          returnStdout: true,
-                          script: "sudo -u ansible tail -n 2 ${env.WORKING_DIR}/.ansible.log"
-                       )
-
-          if (output.contains("unreachable=0") && output.contains("failed=0")) {
-            sh "echo success"
-          } else {
-            error "ansible-playbook error\n$output"
+            if (output.contains("unreachable=0") && output.contains("failed=0")) {
+              sh "echo success"
+            } else {
+              error "ansible-playbook error\n$output"
+            }
           }
         }
       }
