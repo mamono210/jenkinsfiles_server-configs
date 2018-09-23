@@ -15,7 +15,15 @@ pipeline {
 
     EXTRA_ARGS = "-e 'httpd_conf_confd=oc_owncloud.conf' -e '{ \"requires\": [ { \"${env.REQUIRE_HOST_1}\": \"Require host ${env.REQUIRE_HOST_1}\" }, { \"${env.REQUIRE_HOST_2}\": \"Require host ${env.REQUIRE_HOST_2}\" } ] }'"
 
-    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
+    WORKING_DIR = "node1_${env.ANSIBLE_PLAYBOOK}"
+  }
+
+  parameters {
+    string(
+      name: 'GIT_BRANCHES_ANSIBLE',
+      defaultValue: '*/master',
+      description: "Git branch or tag name or commit id to retrieve of ${env.ANSIBLE_GITHUB_URL}"
+    )
   }
 
   stages {
@@ -30,6 +38,10 @@ pipeline {
                         credentials(
                           name: 'INVENTORY',
                           value: "${env.INVENTORY}"
+                        ),
+                        string(
+                          name: 'GIT_BRANCHES_ANSIBLE',
+                          value: "${params.GIT_BRANCHES_ANSIBLE}"
                         ),
                         string(
                           name: 'WORKING_DIR',
