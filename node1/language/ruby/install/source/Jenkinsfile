@@ -1,0 +1,54 @@
+#!groovy
+
+pipeline {
+
+  agent any
+
+  environment {
+    ANSIBLE_PLAYBOOK = 'redmine_install'
+
+    EXTRA_ARGS = "--tags 'language_ruby_install_source'"
+
+    INVENTORY = credentials('node1_ansible_inventory')
+
+    WORKING_DIR = "node1_ruby_install"
+  }
+
+  parameters {
+    string(
+      name: 'GIT_BRANCHES_ANSIBLE',
+      defaultValue: '*/master',
+      description: "Git branch or tag name or commit id to retrieve of ${env.ANSIBLE_GITHUB_URL}"
+    )
+  }
+
+  stages {
+    stage('excute ansible-playbook command') {
+      steps {
+        build job: 'ansible/common/excute/playbook',
+          parameters: [
+                        string(
+                          name: 'ANSIBLE_PLAYBOOK',
+                          value: "${env.ANSIBLE_PLAYBOOK}"
+                        ),
+                        credentials(
+                          name: 'INVENTORY',
+                          value: "${env.INVENTORY}"
+                        ),
+                        string(
+                          name: 'GIT_BRANCHES_ANSIBLE',
+                          value: "${params.GIT_BRANCHES_ANSIBLE}"
+                        ),
+                        string(
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
+                        ),
+                        string(
+                          name: 'EXTRA_ARGS',
+                          value: "${env.EXTRA_ARGS}"
+                        )
+                      ]
+      }
+    }
+  }
+}
