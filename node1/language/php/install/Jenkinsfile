@@ -7,18 +7,23 @@ pipeline {
   environment {
     ANSIBLE_PLAYBOOK = 'wordpress_install'
 
-    EXTRA_ARGS = "--tags 'language_php_71_install'"
+    EXTRA_ARGS = "--tags 'language_php_install'"
 
     INVENTORY = credentials('node1_ansible_inventory')
 
-    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
+    WORKING_DIR = "node1_languate_php_install"
   }
 
   parameters {
     string(
-      name: 'GIT_BRANCH_ANSIBLE',
-      defaultValue: 'topic',
-      description: 'Git branch name of ansible GitHub TomonoriMatsumura repository'
+      name: 'GIT_BRANCHES_ANSIBLE',
+      defaultValue: '*/master',
+      description: "Git branch or tag name or commit id to retrieve of ${env.ANSIBLE_GITHUB_URL}"
+    )
+    string(
+      name: 'REMI_REPO_ID',
+      defaultValue: 'remi-php72',
+      description: 'Remi\'s RPM Repository ID to install php / example: remi-php71,remi-php72,... PHP version need to be greater than 7.0'
     )
   }
 
@@ -33,15 +38,15 @@ pipeline {
                         ),
                         string(
                           name: 'EXTRA_ARGS',
-                          value: "${env.EXTRA_ARGS}"
+                          value: "${env.EXTRA_ARGS} -e 'remi_repo=${params.REMI_REPO_ID}'"
                         ),
                         credentials(
                           name: 'INVENTORY',
                           value: "${env.INVENTORY}"
                         ),
                         string(
-                          name: 'GIT_BRANCH_ANSIBLE',
-                          value: "${params.GIT_BRANCH_ANSIBLE}"
+                          name: 'GIT_BRANCHES_ANSIBLE',
+                          value: "${params.GIT_BRANCHES_ANSIBLE}"
                         ),
                         string(
                           name: 'WORKING_DIR',
