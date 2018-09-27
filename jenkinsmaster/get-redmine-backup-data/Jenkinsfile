@@ -19,11 +19,11 @@ pipeline {
   stages {
     stage('Retrive Redmine backup data from Redmine running site') {
       steps {
-        sh "sudo -u ansible rm -rf ${env.LOCALHOST_DATA_PATH}"
+        sh "rm -rf ${env.LOCALHOST_DATA_PATH}"
 
-        sh "sudo -u ansible mkdir -p ${env.LOCALHOST_DATA_PATH}"
+        sh "mkdir -p ${env.LOCALHOST_DATA_PATH}"
 
-        sh "sudo -u ansible scp -P ${env.DATAHOST_PORT} -r ansible@${env.DATAHOST}:${env.DATAHOST_DATA_PATH} ${env.home}"
+        sh "scp -P ${env.DATAHOST_PORT} -r ansible@${env.DATAHOST}:${env.DATAHOST_DATA_PATH} ${env.home}"
       }
     }
   }
