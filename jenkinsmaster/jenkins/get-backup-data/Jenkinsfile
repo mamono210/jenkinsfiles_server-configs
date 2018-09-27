@@ -52,7 +52,7 @@ pipeline {
         dir("${env.WORKING_DIR}/data") {
           sh "tar cfvz jenkins.tar.gz *"
           sh "chmod 755 jenkins.tar.gz"
-          sh "sudo -u ansible cp jenkins.tar.gz /home/ansible/.jenkins"
+          sh "cp jenkins.tar.gz /home/ansible/.jenkins"
         }
       }
     }
