@@ -11,7 +11,15 @@ pipeline {
 
     EXTRA_ARGS = "-e 'local_data_dir=/home/ansible/.jenkins'"
 
-    WORKING_DIR = "/home/ansible/.jenkins/node1_${env.ANSIBLE_PLAYBOOK}"
+    WORKING_DIR = "node1_${env.ANSIBLE_PLAYBOOK}"
+  }
+
+  parameters {
+    string(
+      name: 'GIT_BRANCHES_ANSIBLE',
+      defaultValue: '*/master',
+      description: "Git branch or tag name or commit id to retrieve of ${env.ANSIBLE_GITHUB_URL}"
+    )
   }
 
   stages {
@@ -26,6 +34,10 @@ pipeline {
                         credentials(
                           name: 'INVENTORY',
                           value: "${env.INVENTORY}"
+                        ),
+                        string(
+                          name: 'GIT_BRANCHES_ANSIBLE',
+                          value: "${params.GIT_BRANCHES_ANSIBLE}"
                         ),
                         string(
                           name: 'WORKING_DIR',
