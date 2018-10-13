@@ -9,7 +9,9 @@ pipeline {
 
     INVENTORY = credentials('node1_ansible_inventory')
 
-    EXTRA_ARGS = "-e 'local_data_dir=/home/ansible/.jenkins'"
+    EXTRA_ARGS = "-e 'local_data_dir=/home/ansible/.jenkins' \
+                  -e 'jenkins_admin_user=tomonori' \
+                  -e 'jenkins_excute_user=ansible'"
 
     WORKING_DIR = "node1_${env.ANSIBLE_PLAYBOOK}"
   }
