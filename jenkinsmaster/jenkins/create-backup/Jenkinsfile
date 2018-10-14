@@ -10,6 +10,8 @@ pipeline {
     ANSIBLE_PORT = credentials('ansible_port')
 
     GIT_REPO = "ssh://jenkinsbackup@${env.ANSIBLE_HOST}:${env.ANSIBLE_PORT}/home/jenkinsbackup/git/backup"
+
+    JENKINS_ADMIN_USER = credentials('jenkins_admin_user')
   }
 
   parameters {
@@ -43,13 +45,22 @@ pipeline {
 
     stage('Replace old Jenkins backup data by new one') {
       steps {
-        dir("backup") {
-          sh "git clone https://github.com/sue445/jenkins-backup-script.git"
-          sh "jenkins-backup-script/jenkins-backup.sh /var/lib/jenkins archive.tar.gz"
-          sh "tar xfvz archive.tar.gz"
-          sh "rm -rf archive.tar.gz"
-          sh "rm -rf jenkins-backup-script"
-          sh "mv jenkins-backup/ data/"
+        script {
+          def sshdport = sh(
+                          returnStdout: true,
+                          script: "curl -v http://localhost:8080/jenkins/login 2>&1 | grep SSH-Endpoint | cut -d':' -f3"
+                       ).trim()
+
+          dir("backup") {
+            sh "git clone https://github.com/sue445/jenkins-backup-script.git"
+            sh "jenkins-backup-script/jenkins-backup.sh /var/lib/jenkins archive.tar.gz"
+            sh "tar xfvz archive.tar.gz"
+            sh "rm -rf archive.tar.gz"
+            sh "rm -rf jenkins-backup-script"
+            sh "rm -rf jenkins-backup/plugins/*"
+            sh "sudo -u ${env.JENKINS_ADMIN_USER} ssh -o StrictHostKeyChecking=no -l ${env.JENKINS_ADMIN_USER} -p ${sshdport} localhost list-plugins > jenkins-backup/plugins/plugin.list"
+            sh "mv jenkins-backup/ data/"
+          }
         }
       }
     }
