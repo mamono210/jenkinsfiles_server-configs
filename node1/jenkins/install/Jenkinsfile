@@ -5,15 +5,11 @@ pipeline {
   agent any
 
   environment {
-    ANSIBLE_PLAYBOOK = 'jenkins_install'
+    ANSIBLE_PLAYBOOK = 'site'
+
+    GIT_URL_ANSIBLE = 'https://github.com/TomonoriMatsumura/ansible_centos7_jenkins_install.git'
 
     INVENTORY = credentials('node1_ansible_inventory')
-
-    REQUIRE_HOST_1 = credentials('require_host_1')
-
-    REQUIRE_HOST_2 = credentials('require_host_2')
-
-    EXTRA_ARGS = "--extra-vars='{ \"requires\": [ { \"${env.REQUIRE_HOST_1}\": \"Require host ${env.REQUIRE_HOST_1}\" }, { \"${env.REQUIRE_HOST_2}\": \"Require host ${env.REQUIRE_HOST_2}\" } ] }'"
 
     WORKING_DIR = "node1_${env.ANSIBLE_PLAYBOOK}"
   }
@@ -22,14 +18,14 @@ pipeline {
     string(
       name: 'GIT_BRANCHES_ANSIBLE',
       defaultValue: '*/master',
-      description: "Git branch or tag name or commit id to retrieve of ${env.ANSIBLE_GITHUB_URL}"
+      description: "Git branch or tag name or commit id to retrieve"
     )
   }
 
   stages {
-    stage('excute ansible-playbook command') {
+    stage('Excute ansible-playbook command') {
       steps {
-        build job: 'ansible/common/excute/playbook',
+        build job: 'ansible/playbook',
           parameters: [
                         string(
                           name: 'ANSIBLE_PLAYBOOK',
@@ -44,12 +40,12 @@ pipeline {
                           value: "${params.GIT_BRANCHES_ANSIBLE}"
                         ),
                         string(
-                          name: 'WORKING_DIR',
-                          value: "${env.WORKING_DIR}"
+                          name: 'GIT_URL',
+                          value: "${env.GIT_URL_ANSIBLE}"
                         ),
                         string(
-                          name: 'EXTRA_ARGS',
-                          value: "${env.EXTRA_ARGS}"
+                          name: 'WORKING_DIR',
+                          value: "${env.WORKING_DIR}"
                         )
                       ]
       }
